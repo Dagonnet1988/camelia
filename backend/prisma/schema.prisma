@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CategoriaProducto {
+  arete
+  anillo
+  manilla
+  collar
+  otro
+}
+
+enum MedioPago {
+  contado
+  cuotas
+}
+
+enum Canal {
+  whatsapp
+  presencial
+}
+
+enum EstadoCuota {
+  pendiente
+  pagada
+  atrasada
+}
+
+model Producto {
+  codigo        String            @id
+  nombre        String
+  categoria     CategoriaProducto
+  valorVenta    Decimal           @map("valor_venta") @db.Decimal(12, 2)
+  costoPromedio Decimal           @default(0) @map("costo_promedio") @db.Decimal(12, 2)
+  stockActual   Int               @default(0) @map("stock_actual")
+  stockMinimo   Int               @default(0) @map("stock_minimo")
+  fechaIngreso  DateTime          @default(now()) @map("fecha_ingreso")
+
+  compras CompraInventario[]
+  ventas  Venta[]
+
+  @@map("productos")
+}
+
+model CompraInventario {
+  id                  Int      @id @default(autoincrement())
+  codigoProducto      String   @map("codigo_producto")
+  cantidad            Int
+  valorCompraUnitario Decimal  @map("valor_compra_unitario") @db.Decimal(12, 2)
+  proveedor           String?
+  fechaCompra         DateTime @default(now()) @map("fecha_compra")
+
+  producto Producto @relation(fields: [codigoProducto], references: [codigo])
+
+  @@map("compras_inventario")
+}
+
+model Comprador {
+  celular            String    @id
+  nombre             String
+  fechaPrimeraCompra DateTime? @map("fecha_primera_compra")
+
+  ventas Venta[]
+
+  @@map("compradores")
+}
+
+model Venta {
+  id                     Int       @id @default(autoincrement())
+  codigoProducto         String    @map("codigo_producto")
+  compradorCelular       String?   @map("comprador_celular")
+  cantidad               Int
+  valorContado           Decimal   @map("valor_contado") @db.Decimal(12, 2)
+  medioPago              MedioPago @map("medio_pago")
+  numCuotas              Int?      @map("num_cuotas")
+  recargoCuotas          Decimal?  @map("recargo_cuotas") @db.Decimal(12, 2)
+  valorTotalVenta        Decimal   @map("valor_total_venta") @db.Decimal(12, 2)
+  costoPromedioAlMomento Decimal   @map("costo_promedio_al_momento") @db.Decimal(12, 2)
+  ganancia               Decimal   @db.Decimal(12, 2)
+  canal                  Canal
+  fechaVenta             DateTime  @default(now()) @map("fecha_venta")
+
+  producto  Producto   @relation(fields: [codigoProducto], references: [codigo])
+  comprador Comprador? @relation(fields: [compradorCelular], references: [celular])
+  cuotas    Cuota[]
+
+  @@map("ventas")
+}
+
+model Cuota {
+  id               Int         @id @default(autoincrement())
+  idVenta          Int         @map("id_venta")
+  numeroCuota      Int         @map("numero_cuota")
+  valorCuota       Decimal     @map("valor_cuota") @db.Decimal(12, 2)
+  fechaVencimiento DateTime    @map("fecha_vencimiento") @db.Date
+  fechaPago        DateTime?   @map("fecha_pago") @db.Date
+  estado           EstadoCuota @default(pendiente)
+
+  venta Venta @relation(fields: [idVenta], references: [id])
+
+  @@map("cuotas")
+}

@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+backend/src/generated/
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Angular
+frontend/.angular/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+
+# Claude Code local settings
+.claude/settings.local.json

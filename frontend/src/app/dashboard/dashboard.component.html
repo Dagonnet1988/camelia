@@ -1,0 +1,300 @@
+<header class="page-header">
+  <h1>Camelia — Panel de metricas</h1>
+  <p>Inventario, ventas y rentabilidad de la bisuteria</p>
+</header>
+
+<div class="dashboard-grid">
+  <!-- 1. Top productos -->
+  <section class="card span-2">
+    <h2>Top productos</h2>
+    <div class="split">
+      <div>
+        <h3>Por unidades vendidas</h3>
+        <div class="chart-box">
+          @if (topProductosUnidadesChart()) {
+            <app-chart [config]="topProductosUnidadesChart()!" />
+          }
+        </div>
+      </div>
+      <div>
+        <h3>Por ingresos</h3>
+        <div class="chart-box">
+          @if (topProductosIngresosChart()) {
+            <app-chart [config]="topProductosIngresosChart()!" />
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Margen por producto -->
+  <section class="card span-2">
+    <h2>Margen por producto</h2>
+    <div class="split">
+      <div class="chart-box">
+        @if (margenChart()) {
+          <app-chart [config]="margenChart()!" />
+        }
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Categoria</th>
+              <th>Precio venta</th>
+              <th>Costo prom.</th>
+              <th>Margen</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of margenProductos(); track p.codigo) {
+              <tr>
+                <td>{{ p.nombre }}</td>
+                <td>{{ p.categoria }}</td>
+                <td class="num">{{ formatMoneda(p.valorVenta) }}</td>
+                <td class="num">{{ formatMoneda(p.costoPromedio) }}</td>
+                <td class="num">{{ formatPorcentaje(p.margen) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Rotacion de inventario -->
+  <section class="card span-2">
+    <div class="section-header">
+      <h2>Rotacion de inventario</h2>
+      <div class="filter-row">
+        <button [class.active]="rotacionDias() === 30" (click)="cambiarRotacionDias(30)">30 dias</button>
+        <button [class.active]="rotacionDias() === 90" (click)="cambiarRotacionDias(90)">90 dias</button>
+        <button [class.active]="rotacionDias() === 365" (click)="cambiarRotacionDias(365)">365 dias</button>
+      </div>
+    </div>
+    <div class="split">
+      <div>
+        <h3>Por producto (unidades/dia)</h3>
+        <div class="chart-box">
+          @if (rotacionProductoChart()) {
+            <app-chart [config]="rotacionProductoChart()!" />
+          }
+        </div>
+      </div>
+      <div>
+        <h3>Por categoria (unidades/dia)</h3>
+        <div class="chart-box">
+          @if (rotacionCategoriaChart()) {
+            <app-chart [config]="rotacionCategoriaChart()!" />
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Ganancia acumulada -->
+  <section class="card span-2">
+    <div class="section-header">
+      <h2>Ganancia</h2>
+      <div class="filter-row">
+        <button [class.active]="gananciaPeriodo() === 'semana'" (click)="cambiarGananciaPeriodo('semana')">
+          Semana
+        </button>
+        <button [class.active]="gananciaPeriodo() === 'mes'" (click)="cambiarGananciaPeriodo('mes')">Mes</button>
+      </div>
+    </div>
+    <div class="split">
+      <div>
+        <h3>Por periodo</h3>
+        <div class="chart-box">
+          @if (gananciaPeriodoChart()) {
+            <app-chart [config]="gananciaPeriodoChart()!" />
+          }
+        </div>
+      </div>
+      <div>
+        <h3>Acumulada (tendencia)</h3>
+        <div class="chart-box">
+          @if (gananciaAcumuladaChart()) {
+            <app-chart [config]="gananciaAcumuladaChart()!" />
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Analisis ABC -->
+  <section class="card">
+    <h2>Analisis ABC</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Ganancia</th>
+            <th>% acumulado</th>
+            <th>Clase</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of abc(); track item.codigo) {
+            <tr>
+              <td>{{ item.nombre }}</td>
+              <td class="num">{{ formatMoneda(item.ganancia) }}</td>
+              <td class="num">{{ item.porcentajeAcumulado }}%</td>
+              <td>
+                <span class="badge" [class]="'badge-' + item.clase.toLowerCase()">{{ item.clase }}</span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 6. Ticket promedio -->
+  <section class="card">
+    <h2>Ticket promedio</h2>
+    <div class="kpi-row">
+      @if (ticket(); as t) {
+        <app-stat-tile
+          label="Ticket promedio general"
+          [value]="formatMoneda(t.general.ticketPromedio)"
+          [caption]="t.general.numeroVentas + ' ventas'"
+        />
+      }
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Comprador</th>
+            <th>N ventas</th>
+            <th>Ticket promedio</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of ticket()?.porComprador; track c.compradorCelular) {
+            <tr>
+              <td>{{ c.nombre }}</td>
+              <td class="num">{{ c.numeroVentas }}</td>
+              <td class="num">{{ formatMoneda(c.ticketPromedio) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 7. Contado vs cuotas -->
+  <section class="card">
+    <h2>Contado vs. cuotas</h2>
+    @if (contadoVsCuotas(); as cvc) {
+      <div class="kpi-row">
+        @for (m of cvc.porMedioPago; track m.medioPago) {
+          <app-stat-tile
+            [label]="m.medioPago === 'contado' ? 'Margen contado' : 'Margen cuotas'"
+            [value]="formatPorcentaje(m.margenPromedio)"
+            [caption]="m.numeroVentas + ' ventas'"
+          />
+        }
+        <app-stat-tile label="Tasa de mora" [value]="formatPorcentaje(cvc.tasaMora)" />
+      </div>
+      <p class="callout">{{ cvc.sugerencia }}</p>
+    }
+  </section>
+
+  <!-- 8. Cartera de cuotas -->
+  <section class="card span-2">
+    <h2>Cartera de cuotas</h2>
+    <div class="kpi-row">
+      <app-stat-tile
+        label="Por cobrar (pendiente)"
+        [value]="cartera_totalPendiente()"
+        [caption]="cartera_cantidadPendiente() + ' cuotas'"
+      />
+      <app-stat-tile
+        label="Por cobrar (atrasada)"
+        [value]="cartera_totalAtrasado()"
+        [caption]="cartera_cantidadAtrasada() + ' cuotas'"
+      />
+    </div>
+    <h3>Proximos vencimientos (30 dias)</h3>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Comprador</th>
+            <th>Producto</th>
+            <th>Cuota</th>
+            <th>Valor</th>
+            <th>Vence</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of cartera()?.proximosVencimientos; track c.id) {
+            <tr>
+              <td>{{ c.venta.comprador?.nombre ?? '—' }}</td>
+              <td>{{ c.venta.codigoProducto }}</td>
+              <td class="num">{{ c.numeroCuota }}</td>
+              <td class="num">{{ formatMoneda(c.valorCuota) }}</td>
+              <td>{{ formatFecha(c.fechaVencimiento) }}</td>
+              <td>
+                <span class="badge" [class]="'badge-' + c.estado">{{ c.estado }}</span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 9. Stock muerto -->
+  <section class="card">
+    <div class="section-header">
+      <h2>Stock muerto</h2>
+      <div class="filter-row">
+        <button [class.active]="stockMuertoDias() === 15" (click)="cambiarStockMuertoDias(15)">15 dias</button>
+        <button [class.active]="stockMuertoDias() === 30" (click)="cambiarStockMuertoDias(30)">30 dias</button>
+        <button [class.active]="stockMuertoDias() === 60" (click)="cambiarStockMuertoDias(60)">60 dias</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Stock actual</th>
+            <th>Ultima venta</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of stockMuerto(); track p.codigo) {
+            <tr>
+              <td>{{ p.nombre }}</td>
+              <td class="num">{{ p.stockActual }}</td>
+              <td>{{ p.ultimaVenta ? formatFecha(p.ultimaVenta) : 'Nunca' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 10. Historial de costos por proveedor -->
+  <section class="card span-2">
+    <h2>Historial de costos por proveedor</h2>
+    <div class="split">
+      @for (grupo of costosProveedorCharts(); track grupo.proveedor) {
+        <div>
+          <h3>{{ grupo.proveedor }}</h3>
+          <div class="chart-box">
+            <app-chart [config]="grupo.config" />
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+</div>

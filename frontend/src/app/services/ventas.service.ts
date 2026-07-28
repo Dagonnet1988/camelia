@@ -1,0 +1,18 @@
+import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import type { RegistrarVentaInput, Venta } from '../models/domain.models';
+
+const BASE = '/api/ventas';
+
+@Injectable({ providedIn: 'root' })
+export class VentasService {
+  constructor(private http: HttpClient) {}
+
+  listar() {
+    return this.http.get<Venta[]>(BASE);
+  }
+
+  registrar(input: RegistrarVentaInput) {
+    return this.http.post<Venta>(BASE, input);
+  }
+}

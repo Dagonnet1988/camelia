@@ -1,0 +1,72 @@
+<header class="page-header">
+  <h1>Compras de inventario</h1>
+  <p>Registra el reabastecimiento de stock — recalcula el costo promedio ponderado</p>
+</header>
+
+<section class="card">
+  <h2>Registrar compra</h2>
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+  @if (exito()) {
+    <div class="alert-ok">{{ exito() }}</div>
+  }
+
+  <form (ngSubmit)="registrar()">
+    <div class="form-grid">
+      <div class="field">
+        <label>Producto</label>
+        <select name="codigoProducto" [(ngModel)]="form.codigoProducto" required>
+          <option value="" disabled>Selecciona…</option>
+          @for (p of productos(); track p.codigo) {
+            <option [value]="p.codigo">{{ p.nombre }} ({{ p.codigo }})</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label>Cantidad</label>
+        <input type="number" name="cantidad" [(ngModel)]="form.cantidad" min="1" required />
+      </div>
+      <div class="field">
+        <label>Valor de compra (unitario)</label>
+        <input type="number" name="valorCompraUnitario" [(ngModel)]="form.valorCompraUnitario" min="0" required />
+      </div>
+      <div class="field">
+        <label>Proveedor (opcional)</label>
+        <input name="proveedor" [(ngModel)]="form.proveedor" placeholder="Proveedor A" />
+      </div>
+      <div class="field">
+        <button class="btn" type="submit" [disabled]="guardando()">Registrar compra</button>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section class="card" style="margin-top: 20px">
+  <h2>Historial de compras</h2>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Cantidad</th>
+          <th>Valor unitario</th>
+          <th>Proveedor</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of compras(); track c.id) {
+          <tr>
+            <td>{{ nombreProducto(c.codigoProducto) }}</td>
+            <td class="num">{{ c.cantidad }}</td>
+            <td class="num">{{ c.valorCompraUnitario }}</td>
+            <td>{{ c.proveedor ?? '—' }}</td>
+            <td>{{ c.fechaCompra | date: 'dd/MM/yyyy' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

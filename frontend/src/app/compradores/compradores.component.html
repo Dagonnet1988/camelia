@@ -1,0 +1,53 @@
+<header class="page-header">
+  <h1>Compradores</h1>
+  <p>Clientes identificados por numero de celular</p>
+</header>
+
+<section class="card">
+  <h2>Nuevo comprador</h2>
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+  @if (exito()) {
+    <div class="alert-ok">{{ exito() }}</div>
+  }
+
+  <form (ngSubmit)="crear()">
+    <div class="form-grid">
+      <div class="field">
+        <label>Celular</label>
+        <input name="celular" [(ngModel)]="celular" placeholder="3001234567" required />
+      </div>
+      <div class="field">
+        <label>Nombre</label>
+        <input name="nombre" [(ngModel)]="nombre" placeholder="Maria Perez" required />
+      </div>
+      <div class="field">
+        <button class="btn" type="submit" [disabled]="guardando()">Crear comprador</button>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section class="card" style="margin-top: 20px">
+  <h2>Listado ({{ compradores().length }})</h2>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Celular</th>
+          <th>Nombre</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of compradores(); track c.celular) {
+          <tr>
+            <td>{{ c.celular }}</td>
+            <td>{{ c.nombre }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

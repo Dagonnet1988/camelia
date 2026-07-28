@@ -1,1 +1,250 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  color-scheme: light;
+  --surface-1: #fcfcfb;
+  --page-plane: #f9f9f7;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --muted: #898781;
+  --gridline: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --page-plane: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --muted: #898781;
+    --gridline: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --good: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #e66767;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--page-plane);
+  color: var(--text-primary);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+.page-header {
+  margin-bottom: 24px;
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: 24px;
+  }
+
+  p {
+    margin: 0;
+    color: var(--text-secondary);
+  }
+}
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+
+  h2 {
+    margin: 0 0 16px;
+    font-size: 16px;
+  }
+
+  h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+}
+
+.filter-row {
+  display: flex;
+  gap: 4px;
+
+  button {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+
+    &.active {
+      background: var(--text-primary);
+      color: var(--surface-1);
+      border-color: var(--text-primary);
+    }
+  }
+}
+
+.callout {
+  margin: 0;
+  padding: 12px 16px;
+  background: var(--page-plane);
+  border-left: 3px solid var(--baseline);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th,
+  td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--gridline);
+    white-space: nowrap;
+  }
+
+  th {
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  td.num,
+  th.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.badge-a,
+.badge-pagada,
+.badge-ok {
+  background: var(--good);
+}
+
+.badge-b,
+.badge-pendiente {
+  background: var(--warning);
+  color: var(--text-primary);
+}
+
+.badge-c,
+.badge-atrasada,
+.badge-bajo {
+  background: var(--serious);
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--text-primary);
+  color: var(--surface-1);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.btn-secondary {
+    background: transparent;
+    color: var(--text-primary);
+  }
+
+  &.btn-danger {
+    background: transparent;
+    color: var(--serious);
+    border-color: var(--serious);
+  }
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+
+  label {
+    color: var(--text-secondary);
+  }
+
+  input,
+  select {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-size: 14px;
+  }
+}
+
+.alert-error {
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--critical) 12%, var(--surface-1));
+  border: 1px solid var(--critical);
+  color: var(--critical);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.alert-ok {
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--good) 12%, var(--surface-1));
+  border: 1px solid var(--good);
+  color: var(--good);
+  font-size: 13px;
+  margin-bottom: 16px;
+}

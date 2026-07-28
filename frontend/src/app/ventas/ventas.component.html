@@ -1,0 +1,109 @@
+<header class="page-header">
+  <h1>Ventas</h1>
+  <p>Registra una venta de contado o a cuotas</p>
+</header>
+
+<section class="card">
+  <h2>Nueva venta</h2>
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+  @if (exito()) {
+    <div class="alert-ok">{{ exito() }}</div>
+  }
+
+  <form (ngSubmit)="registrar()">
+    <div class="form-grid">
+      <div class="field">
+        <label>Producto</label>
+        <select name="codigoProducto" [(ngModel)]="form.codigoProducto" required>
+          <option value="" disabled>Selecciona…</option>
+          @for (p of productos(); track p.codigo) {
+            <option [value]="p.codigo">{{ p.nombre }} — stock {{ p.stockActual }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label>Comprador (opcional)</label>
+        <select name="compradorCelular" [(ngModel)]="form.compradorCelular">
+          <option value="">Anonimo</option>
+          @for (c of compradores(); track c.celular) {
+            <option [value]="c.celular">{{ c.nombre }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label>Cantidad</label>
+        <input type="number" name="cantidad" [(ngModel)]="form.cantidad" min="1" required />
+      </div>
+      <div class="field">
+        <label>Canal</label>
+        <select name="canal" [(ngModel)]="form.canal">
+          <option value="whatsapp">WhatsApp</option>
+          <option value="presencial">Presencial</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Medio de pago</label>
+        <select name="medioPago" [(ngModel)]="form.medioPago">
+          <option value="contado">Contado</option>
+          <option value="cuotas">Cuotas</option>
+        </select>
+      </div>
+      @if (form.medioPago === 'cuotas') {
+        <div class="field">
+          <label>N cuotas (max 3)</label>
+          <select name="numCuotas" [(ngModel)]="form.numCuotas">
+            <option [ngValue]="1">1</option>
+            <option [ngValue]="2">2</option>
+            <option [ngValue]="3">3</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Recargo por cuotas</label>
+          <input type="number" name="recargoCuotas" [(ngModel)]="form.recargoCuotas" min="0" />
+        </div>
+      }
+      <div class="field">
+        <button class="btn" type="submit" [disabled]="guardando()">Registrar venta</button>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section class="card" style="margin-top: 20px">
+  <h2>Ventas recientes</h2>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Producto</th>
+          <th>Comprador</th>
+          <th>Cant.</th>
+          <th>Medio</th>
+          <th>Total</th>
+          <th>Ganancia</th>
+          <th>Canal</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (v of ventas(); track v.id) {
+          <tr>
+            <td>{{ v.id }}</td>
+            <td>{{ nombreProducto(v.codigoProducto) }}</td>
+            <td>{{ nombreComprador(v.compradorCelular) }}</td>
+            <td class="num">{{ v.cantidad }}</td>
+            <td>{{ v.medioPago }}{{ v.numCuotas ? ' (' + v.numCuotas + ')' : '' }}</td>
+            <td class="num">{{ v.valorTotalVenta }}</td>
+            <td class="num">{{ v.ganancia }}</td>
+            <td>{{ v.canal }}</td>
+            <td>{{ v.fechaVenta | date: 'dd/MM/yyyy' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

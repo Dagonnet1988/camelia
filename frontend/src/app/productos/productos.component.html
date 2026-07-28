@@ -1,0 +1,102 @@
+<header class="page-header">
+  <h1>Productos</h1>
+  <p>Catalogo de SKUs, precios y stock</p>
+</header>
+
+<section class="card">
+  <h2>{{ editandoCodigo() ? 'Editar producto' : 'Nuevo producto' }}</h2>
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+  @if (exito()) {
+    <div class="alert-ok">{{ exito() }}</div>
+  }
+
+  <form (ngSubmit)="guardar()">
+    <div class="form-grid">
+      <div class="field">
+        <label>Codigo (SKU)</label>
+        <input
+          name="codigo"
+          [(ngModel)]="form.codigo"
+          [disabled]="!!editandoCodigo()"
+          placeholder="ARE-001"
+          required
+        />
+      </div>
+      <div class="field">
+        <label>Nombre</label>
+        <input name="nombre" [(ngModel)]="form.nombre" placeholder="Arete Luna" required />
+      </div>
+      <div class="field">
+        <label>Categoria</label>
+        <select name="categoria" [(ngModel)]="form.categoria">
+          @for (c of categorias; track c) {
+            <option [value]="c">{{ c }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label>Valor de venta</label>
+        <input type="number" name="valorVenta" [(ngModel)]="form.valorVenta" min="0" required />
+      </div>
+      <div class="field">
+        <label>Stock minimo</label>
+        <input type="number" name="stockMinimo" [(ngModel)]="form.stockMinimo" min="0" />
+      </div>
+      <div class="field">
+        <button class="btn" type="submit" [disabled]="guardando()">
+          {{ editandoCodigo() ? 'Guardar cambios' : 'Crear producto' }}
+        </button>
+      </div>
+      @if (editandoCodigo()) {
+        <div class="field">
+          <button class="btn btn-secondary" type="button" (click)="cancelarEdicion()">Cancelar</button>
+        </div>
+      }
+    </div>
+  </form>
+</section>
+
+<section class="card" style="margin-top: 20px">
+  <h2>Catalogo ({{ productos().length }})</h2>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Codigo</th>
+          <th>Nombre</th>
+          <th>Categoria</th>
+          <th>Valor venta</th>
+          <th>Costo prom.</th>
+          <th>Stock</th>
+          <th>Stock min.</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of productos(); track p.codigo) {
+          <tr>
+            <td>{{ p.codigo }}</td>
+            <td>{{ p.nombre }}</td>
+            <td>{{ p.categoria }}</td>
+            <td class="num">{{ p.valorVenta }}</td>
+            <td class="num">{{ p.costoPromedio }}</td>
+            <td class="num">
+              {{ p.stockActual }}
+              @if (stockBajo(p)) {
+                <span class="badge badge-bajo">bajo</span>
+              }
+            </td>
+            <td class="num">{{ p.stockMinimo }}</td>
+            <td>
+              <button class="btn btn-secondary" type="button" (click)="editar(p)">Editar</button>
+              <button class="btn btn-danger" type="button" (click)="eliminar(p)">Eliminar</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

@@ -7,7 +7,7 @@ export interface FiltrosCuotas {
   idVenta?: number;
 }
 
-async function marcarAtrasadas() {
+export async function marcarAtrasadas() {
   await prisma.cuota.updateMany({
     where: { estado: "pendiente", fechaVencimiento: { lt: new Date() } },
     data: { estado: "atrasada" },

@@ -5,6 +5,7 @@ import { prisma } from "./lib/prisma";
 import { comprasRouter } from "./routes/compras.routes";
 import { compradoresRouter } from "./routes/compradores.routes";
 import { cuotasRouter } from "./routes/cuotas.routes";
+import { metricsRouter } from "./routes/metrics.routes";
 import { productosRouter } from "./routes/productos.routes";
 import { ventasRouter } from "./routes/ventas.routes";
 
@@ -23,6 +24,7 @@ app.use("/api/compras", comprasRouter);
 app.use("/api/compradores", compradoresRouter);
 app.use("/api/ventas", ventasRouter);
 app.use("/api/cuotas", cuotasRouter);
+app.use("/api/metrics", metricsRouter);
 
 app.use(errorHandler);
 

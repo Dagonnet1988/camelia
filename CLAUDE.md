@@ -161,8 +161,30 @@ escanee con su celular para verificar el pareo y el envío real):**
   `atrasada` con vencimiento en ≤2 días y `recordatorioEnviado = false`, envía un WhatsApp al
   comprador y marca `recordatorioEnviado = true` (una sola vez por cuota, no reenvía a diario).
   Requirió migración: `cuotas.recordatorio_enviado boolean default false`.
+- **Switch on/off de los recordatorios automáticos** (pedido explícito del usuario) — tabla
+  `configuracion_app` (singleton, id=1) con `recordatorios_cuotas_activos`. El switch solo
+  controla el disparo automático del cron; el botón manual "enviar recordatorios ahora" siempre
+  funciona sin importar el switch. Rutas `GET/PUT /api/whatsapp/config`.
 - Frontend `/whatsapp` — estado de conexión, QR para vincular, cerrar sesión, envío manual de
-  prueba, botón para forzar el envío de recordatorios.
+  prueba, switch de recordatorios automáticos, botón para forzar el envío ahora.
+
+**Bugs de estabilidad encontrados y corregidos durante las pruebas (importante para no
+reintroducirlos):**
+
+1. **Una excepción no capturada dentro de Baileys tumbaba TODO el proceso Express** (no solo el
+   módulo de WhatsApp) — ej. un timeout interno al subir prekeys tras conectar. Se agregaron
+   `process.on("unhandledRejection", ...)` y `process.on("uncaughtException", ...)` en
+   `backend/src/index.ts` que loguean sin matar el proceso. Sin esto, un problema de conexión de
+   WhatsApp tumbaba también ventas/productos/etc.
+2. **Loop de reconexión sin control** — antes reintentaba cada 3s indefinidamente ante cualquier
+   cierre de conexión, lo cual martilla los servidores de WhatsApp (justo el patrón que aumenta
+   el riesgo de bloqueo). Ahora `client.ts` tiene backoff exponencial (3s → 60s tope) y se detiene
+   tras 8 intentos seguidos fallidos, dejando el estado en `desconectado` hasta que alguien
+   reconecte manualmente desde `/whatsapp`. Se resetea al conectar establemente (30s) o al
+   reconectar/cerrar sesión manualmente.
+3. Verificar que solo corra **un** `tsx watch` a la vez (`lsof -ti:3000 -sTCP:LISTEN`) — tener dos
+   procesos de dev corriendo en paralelo generó comportamiento confuso (config con valores
+   inesperados) durante el desarrollo de este módulo.
 
 **Pendiente de decidir:** el disparador de "aviso de nueva mercancía/reabastecimiento" NO se
 implementó todavía — quedó pendiente definir si es automático al registrar una

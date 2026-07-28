@@ -14,7 +14,10 @@ type BaileysModule = Awaited<ReturnType<typeof cargarBaileys>>;
 type WASocket = ReturnType<BaileysModule["default"]>;
 
 const AUTH_DIR = path.join(process.cwd(), "whatsapp-session");
-const RECONEXION_MS = 3000;
+const RECONEXION_BASE_MS = 3000;
+const RECONEXION_MAX_MS = 60_000;
+const RECONEXION_MAX_INTENTOS = 8;
+const ESTABLE_DESPUES_DE_MS = 30_000;
 
 const logger = pino({ level: "silent" });
 
@@ -23,12 +26,17 @@ export type EstadoWhatsapp = "desconectado" | "conectando" | "esperando_qr" | "c
 let socket: WASocket | undefined;
 let estado: EstadoWhatsapp = "desconectado";
 let qrDataUrl: string | undefined;
+let intentosReconexion = 0;
+let timeoutEstable: NodeJS.Timeout | undefined;
 
 export function obtenerEstado(): { estado: EstadoWhatsapp; qr: string | undefined } {
   return { estado, qr: qrDataUrl };
 }
 
-export async function iniciarWhatsapp(): Promise<void> {
+export async function iniciarWhatsapp(esReintentoAutomatico = false): Promise<void> {
+  if (!esReintentoAutomatico) {
+    intentosReconexion = 0;
+  }
   estado = "conectando";
   const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } =
     await cargarBaileys();
@@ -56,24 +64,43 @@ export async function iniciarWhatsapp(): Promise<void> {
       estado = "conectado";
       qrDataUrl = undefined;
       console.log("[whatsapp] conectado");
+
+      clearTimeout(timeoutEstable);
+      timeoutEstable = setTimeout(() => {
+        intentosReconexion = 0;
+      }, ESTABLE_DESPUES_DE_MS);
     }
 
     if (connection === "close") {
       qrDataUrl = undefined;
+      clearTimeout(timeoutEstable);
       const statusCode = (lastDisconnect?.error as Boom | undefined)?.output?.statusCode;
       const cerroSesion = statusCode === DisconnectReason.loggedOut;
 
       if (cerroSesion) {
         estado = "desconectado";
+        intentosReconexion = 0;
         console.log("[whatsapp] sesion cerrada");
         return;
       }
 
+      intentosReconexion += 1;
+      if (intentosReconexion > RECONEXION_MAX_INTENTOS) {
+        estado = "desconectado";
+        console.error(
+          `[whatsapp] ${RECONEXION_MAX_INTENTOS} intentos de reconexion fallidos seguidos, me detengo. Reconecta manualmente desde /whatsapp.`,
+        );
+        return;
+      }
+
+      const espera = Math.min(RECONEXION_BASE_MS * 2 ** (intentosReconexion - 1), RECONEXION_MAX_MS);
       estado = "conectando";
-      console.log(`[whatsapp] conexion cerrada (codigo ${statusCode ?? "desconocido"}), reintentando...`);
+      console.log(
+        `[whatsapp] conexion cerrada (codigo ${statusCode ?? "desconocido"}), reintentando en ${espera}ms (intento ${intentosReconexion}/${RECONEXION_MAX_INTENTOS})...`,
+      );
       setTimeout(() => {
-        iniciarWhatsapp().catch((err) => console.error("Error reconectando WhatsApp:", err));
-      }, RECONEXION_MS);
+        iniciarWhatsapp(true).catch((err) => console.error("Error reconectando WhatsApp:", err));
+      }, espera);
     }
   });
 }
@@ -85,6 +112,8 @@ export async function cerrarSesionWhatsapp(): Promise<void> {
   socket = undefined;
   estado = "desconectado";
   qrDataUrl = undefined;
+  intentosReconexion = 0;
+  clearTimeout(timeoutEstable);
   await rm(AUTH_DIR, { recursive: true, force: true });
 }
 

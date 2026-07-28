@@ -56,9 +56,24 @@
 
 <section class="card" style="margin-top: 20px">
   <h2>Recordatorios de cuotas</h2>
+
+  <div class="switch-row">
+    <label class="switch">
+      <input
+        type="checkbox"
+        [checked]="recordatoriosActivos()"
+        [disabled]="guardandoConfig()"
+        (change)="toggleRecordatorios()"
+      />
+      <span class="slider"></span>
+    </label>
+    <span>Recordatorios automaticos {{ recordatoriosActivos() ? 'activos' : 'desactivados' }}</span>
+  </div>
+
   <p class="hint">
-    Se envian automaticamente todos los dias a las 9:00am (cuotas que vencen en los proximos 2 dias
-    o ya atrasadas, una sola vez por cuota). Tambien puedes forzar el envio ahora:
+    Cuando estan activos, se envian todos los dias a las 9:00am (cuotas que vencen en los proximos
+    2 dias o ya atrasadas, una sola vez por cuota). El boton de abajo siempre funciona, sin
+    importar el switch:
   </p>
   <button class="btn btn-secondary" type="button" (click)="enviarRecordatoriosAhora()" [disabled]="estado() !== 'conectado'">
     Enviar recordatorios ahora

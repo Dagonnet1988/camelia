@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler } from "../lib/http";
 import { validateBody } from "../lib/validate";
+import { actualizarRecordatoriosCuotas, obtenerConfiguracion } from "../services/configuracion.service";
 import {
   cerrarSesionWhatsapp,
   enviarMensajeWhatsapp,
@@ -13,6 +14,10 @@ import { enviarRecordatoriosCuotas } from "../whatsapp/recordatorios";
 const enviarMensajeSchema = z.object({
   numero: z.string().min(5),
   texto: z.string().min(1),
+});
+
+const configSchema = z.object({
+  recordatoriosCuotasActivos: z.boolean(),
 });
 
 export const whatsappRouter = Router();
@@ -51,5 +56,20 @@ whatsappRouter.post(
   asyncHandler(async (_req, res) => {
     await enviarRecordatoriosCuotas();
     res.json({ ejecutado: true });
+  }),
+);
+
+whatsappRouter.get(
+  "/config",
+  asyncHandler(async (_req, res) => {
+    res.json(await obtenerConfiguracion());
+  }),
+);
+
+whatsappRouter.put(
+  "/config",
+  validateBody(configSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await actualizarRecordatoriosCuotas(req.body.recordatoriosCuotasActivos));
   }),
 );

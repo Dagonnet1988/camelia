@@ -106,3 +106,10 @@ model Cuota {
 
   @@map("cuotas")
 }
+
+model ConfiguracionApp {
+  id                         Int     @id @default(1)
+  recordatoriosCuotasActivos Boolean @default(true) @map("recordatorios_cuotas_activos")
+
+  @@map("configuracion_app")
+}

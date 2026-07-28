@@ -24,6 +24,9 @@ export class WhatsappComponent implements OnInit, OnDestroy {
   error = signal<string | null>(null);
   exito = signal<string | null>(null);
 
+  recordatoriosActivos = signal(true);
+  guardandoConfig = signal(false);
+
   private pollSub?: Subscription;
 
   constructor(private whatsapp: WhatsappService) {}
@@ -39,6 +42,7 @@ export class WhatsappComponent implements OnInit, OnDestroy {
       this.estado.set(r.estado);
       this.qr.set(r.qr);
     });
+    this.whatsapp.obtenerConfig().subscribe((c) => this.recordatoriosActivos.set(c.recordatoriosCuotasActivos));
   }
 
   ngOnDestroy(): void {
@@ -87,6 +91,21 @@ export class WhatsappComponent implements OnInit, OnDestroy {
     this.whatsapp.enviarRecordatoriosAhora().subscribe({
       next: () => this.exito.set('Recordatorios de cuotas procesados'),
       error: (err) => this.error.set(extractError(err)),
+    });
+  }
+
+  toggleRecordatorios(): void {
+    const nuevoValor = !this.recordatoriosActivos();
+    this.guardandoConfig.set(true);
+    this.whatsapp.actualizarConfig(nuevoValor).subscribe({
+      next: (c) => {
+        this.recordatoriosActivos.set(c.recordatoriosCuotasActivos);
+        this.guardandoConfig.set(false);
+      },
+      error: (err) => {
+        this.error.set(extractError(err));
+        this.guardandoConfig.set(false);
+      },
     });
   }
 }

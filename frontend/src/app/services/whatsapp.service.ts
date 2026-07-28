@@ -27,4 +27,14 @@ export class WhatsappService {
   enviarRecordatoriosAhora() {
     return this.http.post<{ ejecutado: boolean }>(`${BASE}/recordatorios/enviar-ahora`, {});
   }
+
+  obtenerConfig() {
+    return this.http.get<{ recordatoriosCuotasActivos: boolean }>(`${BASE}/config`);
+  }
+
+  actualizarConfig(recordatoriosCuotasActivos: boolean) {
+    return this.http.put<{ recordatoriosCuotasActivos: boolean }>(`${BASE}/config`, {
+      recordatoriosCuotasActivos,
+    });
+  }
 }

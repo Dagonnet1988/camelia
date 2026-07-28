@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import { prisma } from "../lib/prisma";
+import { obtenerConfiguracion } from "../services/configuracion.service";
 import { marcarAtrasadas } from "../services/cuotas.service";
 import { enviarMensajeWhatsapp } from "./client";
 
@@ -48,6 +49,17 @@ export async function enviarRecordatoriosCuotas(): Promise<void> {
 
 export function programarRecordatoriosCuotas(): void {
   cron.schedule(CRON_DIARIO_9AM, () => {
-    enviarRecordatoriosCuotas().catch((err) => console.error("Error enviando recordatorios:", err));
+    ejecutarRecordatoriosProgramados().catch((err) => console.error("Error enviando recordatorios:", err));
   });
+}
+
+// Respeta el switch de "recordatorios automaticos"; el envio manual (boton "enviar ahora")
+// llama directamente a enviarRecordatoriosCuotas() y siempre se ejecuta.
+async function ejecutarRecordatoriosProgramados(): Promise<void> {
+  const config = await obtenerConfiguracion();
+  if (!config.recordatoriosCuotasActivos) {
+    console.log("[whatsapp] Recordatorios automaticos desactivados, se omite el envio diario.");
+    return;
+  }
+  await enviarRecordatoriosCuotas();
 }

@@ -1,6 +1,17 @@
 import "dotenv/config";
 import express from "express";
 import { errorHandler } from "./lib/http";
+
+// Baileys (WhatsApp) dispara internamente operaciones async que a veces rechazan sin que
+// nuestro codigo pueda capturarlas (ej. timeouts al subir prekeys tras la conexion). Sin esto,
+// un problema de la sesion de WhatsApp tumba todo el proceso, incluyendo ventas/productos/etc.
+process.on("unhandledRejection", (reason) => {
+  console.error("[proceso] Promesa rechazada sin capturar:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[proceso] Excepcion no capturada:", err);
+});
+
 import { prisma } from "./lib/prisma";
 import { comprasRouter } from "./routes/compras.routes";
 import { compradoresRouter } from "./routes/compradores.routes";

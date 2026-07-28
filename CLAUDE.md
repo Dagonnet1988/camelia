@@ -95,3 +95,40 @@ Al insertar una compra:
 5. Implementar la lógica de generación de cuotas al crear una venta a cuotas.
 6. Construir endpoints/queries para las métricas listadas.
 7. Construir dashboard frontend simple.
+
+## Backlog / Módulos futuros (no implementados aún)
+
+### Login básico
+
+Autenticación simple de uno o pocos usuarios (ver "Alcance"). Pendiente.
+
+### Despliegue
+
+Configuración systemd/pm2 + bloque Nginx para el subdominio en el servidor Contabo (sin Docker, mismo patrón que Ramelo). Pendiente.
+
+### Módulo de notificaciones por WhatsApp
+
+Enviar mensajes automáticos: recordatorios de vencimiento de cuotas (`cuotas.fecha_vencimiento`),
+avisos de nueva mercancía/reabastecimiento, y potencialmente otros avisos operativos.
+
+**Decisión explícita del usuario:** NO usar la API oficial de WhatsApp Business por ahora.
+Evaluar librerías no oficiales que actualmente funcionen bien:
+
+- **Baileys** (`baileys` en npm, org WhiskeySockets) — librería TS pura que habla el protocolo
+  de WhatsApp Web directamente (WebSocket), sin navegador. Se integra como dependencia dentro
+  del propio backend Node — encaja con el patrón de despliegue sin Docker de este proyecto.
+  Sesión, reconexión y rate-limiting quedan a cargo de la app. v7 en RC a mediados de 2026.
+- **whatsapp-web.js** — controla un Chromium headless real vía Puppeteer. API más simple pero
+  más pesada (requiere Chromium en el servidor) y más frágil ante cambios de WhatsApp Web.
+- **Evolution API / WAHA** — capas REST self-hosted sobre Baileys (o motores similares) con
+  soporte multi-sesión y webhooks; normalmente se despliegan vía Docker, lo cual choca con la
+  restricción de "sin Docker" del servidor Contabo salvo que se corran como proceso nativo.
+
+**Riesgo a tener en cuenta:** todas estas opciones no oficiales violan los términos de servicio
+de WhatsApp y el número vinculado puede ser bloqueado sin aviso (reportado como riesgo real y
+creciente durante 2025-2026, no solo teórico). Mitigar con: número dedicado (no el personal),
+límites de volumen/frecuencia de envío, y patrones de envío que simulen uso humano. Evaluar
+este trade-off con el usuario antes de implementar.
+
+Pendiente: decidir cuál librería y confirmar tolerancia al riesgo de bloqueo antes de construir
+el módulo.

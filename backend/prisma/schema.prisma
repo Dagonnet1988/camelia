@@ -110,6 +110,25 @@ model Cuota {
 model ConfiguracionApp {
   id                         Int     @id @default(1)
   recordatoriosCuotasActivos Boolean @default(true) @map("recordatorios_cuotas_activos")
+  limiteMensajesHora         Int?    @default(20) @map("limite_mensajes_hora")
+  limiteMensajesDia          Int?    @default(100) @map("limite_mensajes_dia")
 
   @@map("configuracion_app")
+}
+
+enum EstadoMensajeWhatsapp {
+  enviado
+  fallido
+}
+
+model HistorialMensajeWhatsapp {
+  id         Int                   @id @default(autoincrement())
+  numero     String
+  mensaje    String
+  tipo       String
+  estado     EstadoMensajeWhatsapp
+  error      String?
+  fechaEnvio DateTime              @default(now()) @map("fecha_envio")
+
+  @@map("historial_mensajes_whatsapp")
 }

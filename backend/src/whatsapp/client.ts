@@ -117,11 +117,21 @@ export async function cerrarSesionWhatsapp(): Promise<void> {
   await rm(AUTH_DIR, { recursive: true, force: true });
 }
 
+// La app solo opera en Colombia: si el numero viene sin indicativo de pais (10 digitos, formato
+// celular colombiano), se le antepone el 57 automaticamente.
+export function normalizarNumeroColombia(numero: string): string {
+  const digitos = numero.replace(/\D/g, "");
+  if (digitos.length === 10) {
+    return `57${digitos}`;
+  }
+  return digitos;
+}
+
 export async function enviarMensajeWhatsapp(numero: string, texto: string): Promise<void> {
   if (!socket || estado !== "conectado") {
     throw new ApiError(409, "WhatsApp no esta conectado. Vincula el numero desde /whatsapp.");
   }
-  const numeroLimpio = numero.replace(/\D/g, "");
+  const numeroLimpio = normalizarNumeroColombia(numero);
   if (!numeroLimpio) {
     throw new ApiError(400, "Numero de celular invalido");
   }

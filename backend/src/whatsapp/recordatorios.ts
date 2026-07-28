@@ -2,7 +2,7 @@ import cron from "node-cron";
 import { prisma } from "../lib/prisma";
 import { obtenerConfiguracion } from "../services/configuracion.service";
 import { marcarAtrasadas } from "../services/cuotas.service";
-import { enviarMensajeWhatsapp } from "./client";
+import { enviarMensajeControlado } from "./mensajes";
 
 const DIAS_ANTICIPACION = 2;
 const CRON_DIARIO_9AM = "0 9 * * *";
@@ -39,7 +39,7 @@ export async function enviarRecordatoriosCuotas(): Promise<void> {
       : `Hola ${comprador.nombre}, te recordamos que tu cuota ${cuota.numeroCuota}/${totalCuotas} de ${nombreProducto} por $${valor} vence el ${fecha}.`;
 
     try {
-      await enviarMensajeWhatsapp(comprador.celular, texto);
+      await enviarMensajeControlado(comprador.celular, texto, "recordatorio_cuota");
       await prisma.cuota.update({ where: { id: cuota.id }, data: { recordatorioEnviado: true } });
     } catch (err) {
       console.error(`No se pudo enviar recordatorio de la cuota ${cuota.id}:`, err);

@@ -2,13 +2,9 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler } from "../lib/http";
 import { validateBody } from "../lib/validate";
-import { actualizarRecordatoriosCuotas, obtenerConfiguracion } from "../services/configuracion.service";
-import {
-  cerrarSesionWhatsapp,
-  enviarMensajeWhatsapp,
-  iniciarWhatsapp,
-  obtenerEstado,
-} from "../whatsapp/client";
+import { actualizarConfiguracion, obtenerConfiguracion } from "../services/configuracion.service";
+import { cerrarSesionWhatsapp, iniciarWhatsapp, obtenerEstado } from "../whatsapp/client";
+import { enviarMensajeControlado, listarHistorial } from "../whatsapp/mensajes";
 import { enviarRecordatoriosCuotas } from "../whatsapp/recordatorios";
 
 const enviarMensajeSchema = z.object({
@@ -17,7 +13,9 @@ const enviarMensajeSchema = z.object({
 });
 
 const configSchema = z.object({
-  recordatoriosCuotasActivos: z.boolean(),
+  recordatoriosCuotasActivos: z.boolean().optional(),
+  limiteMensajesHora: z.number().int().positive().nullable().optional(),
+  limiteMensajesDia: z.number().int().positive().nullable().optional(),
 });
 
 export const whatsappRouter = Router();
@@ -46,7 +44,7 @@ whatsappRouter.post(
   "/enviar",
   validateBody(enviarMensajeSchema),
   asyncHandler(async (req, res) => {
-    await enviarMensajeWhatsapp(req.body.numero, req.body.texto);
+    await enviarMensajeControlado(req.body.numero, req.body.texto, "manual");
     res.status(201).json({ enviado: true });
   }),
 );
@@ -70,6 +68,14 @@ whatsappRouter.put(
   "/config",
   validateBody(configSchema),
   asyncHandler(async (req, res) => {
-    res.json(await actualizarRecordatoriosCuotas(req.body.recordatoriosCuotasActivos));
+    res.json(await actualizarConfiguracion(req.body));
+  }),
+);
+
+whatsappRouter.get(
+  "/historial",
+  asyncHandler(async (req, res) => {
+    const estado = req.query["estado"] as "enviado" | "fallido" | undefined;
+    res.json(await listarHistorial({ estado }));
   }),
 );

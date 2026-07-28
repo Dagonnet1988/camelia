@@ -1,6 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import type { EstadoWhatsappResponse } from '../models/whatsapp.models';
+import type {
+  ConfiguracionWhatsapp,
+  EstadoMensajeWhatsapp,
+  EstadoWhatsappResponse,
+  HistorialMensajeWhatsapp,
+} from '../models/whatsapp.models';
 
 const BASE = '/api/whatsapp';
 
@@ -29,12 +34,16 @@ export class WhatsappService {
   }
 
   obtenerConfig() {
-    return this.http.get<{ recordatoriosCuotasActivos: boolean }>(`${BASE}/config`);
+    return this.http.get<ConfiguracionWhatsapp>(`${BASE}/config`);
   }
 
-  actualizarConfig(recordatoriosCuotasActivos: boolean) {
-    return this.http.put<{ recordatoriosCuotasActivos: boolean }>(`${BASE}/config`, {
-      recordatoriosCuotasActivos,
+  actualizarConfig(cambios: Partial<ConfiguracionWhatsapp>) {
+    return this.http.put<ConfiguracionWhatsapp>(`${BASE}/config`, cambios);
+  }
+
+  historial(estado?: EstadoMensajeWhatsapp) {
+    return this.http.get<HistorialMensajeWhatsapp[]>(`${BASE}/historial`, {
+      params: estado ? { estado } : {},
     });
   }
 }

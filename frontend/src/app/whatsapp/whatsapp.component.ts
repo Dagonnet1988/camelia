@@ -1,8 +1,9 @@
+import { DatePipe } from '@angular/common';
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
-import type { EstadoWhatsapp } from '../models/whatsapp.models';
+import type { EstadoWhatsapp, HistorialMensajeWhatsapp } from '../models/whatsapp.models';
 import { WhatsappService } from '../services/whatsapp.service';
 import { extractError } from '../shared/http-error';
 
@@ -10,7 +11,7 @@ const POLL_MS = 3000;
 
 @Component({
   selector: 'app-whatsapp',
-  imports: [FormsModule],
+  imports: [FormsModule, DatePipe],
   templateUrl: './whatsapp.component.html',
   styleUrl: './whatsapp.component.scss',
 })
@@ -27,6 +28,13 @@ export class WhatsappComponent implements OnInit, OnDestroy {
   recordatoriosActivos = signal(true);
   guardandoConfig = signal(false);
 
+  limiteMensajesHora: number | null = 20;
+  limiteMensajesDia: number | null = 100;
+  guardandoLimites = signal(false);
+  limitesGuardados = signal(false);
+
+  historial = signal<HistorialMensajeWhatsapp[]>([]);
+
   private pollSub?: Subscription;
 
   constructor(private whatsapp: WhatsappService) {}
@@ -42,11 +50,24 @@ export class WhatsappComponent implements OnInit, OnDestroy {
       this.estado.set(r.estado);
       this.qr.set(r.qr);
     });
-    this.whatsapp.obtenerConfig().subscribe((c) => this.recordatoriosActivos.set(c.recordatoriosCuotasActivos));
+    this.cargarConfig();
+    this.cargarHistorial();
   }
 
   ngOnDestroy(): void {
     this.pollSub?.unsubscribe();
+  }
+
+  cargarConfig(): void {
+    this.whatsapp.obtenerConfig().subscribe((c) => {
+      this.recordatoriosActivos.set(c.recordatoriosCuotasActivos);
+      this.limiteMensajesHora = c.limiteMensajesHora;
+      this.limiteMensajesDia = c.limiteMensajesDia;
+    });
+  }
+
+  cargarHistorial(): void {
+    this.whatsapp.historial().subscribe((h) => this.historial.set(h));
   }
 
   reconectar(): void {
@@ -77,10 +98,12 @@ export class WhatsappComponent implements OnInit, OnDestroy {
         this.exito.set('Mensaje enviado');
         this.enviando.set(false);
         this.texto = '';
+        this.cargarHistorial();
       },
       error: (err) => {
         this.error.set(extractError(err));
         this.enviando.set(false);
+        this.cargarHistorial();
       },
     });
   }
@@ -89,7 +112,10 @@ export class WhatsappComponent implements OnInit, OnDestroy {
     this.error.set(null);
     this.exito.set(null);
     this.whatsapp.enviarRecordatoriosAhora().subscribe({
-      next: () => this.exito.set('Recordatorios de cuotas procesados'),
+      next: () => {
+        this.exito.set('Recordatorios de cuotas procesados');
+        this.cargarHistorial();
+      },
       error: (err) => this.error.set(extractError(err)),
     });
   }
@@ -97,7 +123,7 @@ export class WhatsappComponent implements OnInit, OnDestroy {
   toggleRecordatorios(): void {
     const nuevoValor = !this.recordatoriosActivos();
     this.guardandoConfig.set(true);
-    this.whatsapp.actualizarConfig(nuevoValor).subscribe({
+    this.whatsapp.actualizarConfig({ recordatoriosCuotasActivos: nuevoValor }).subscribe({
       next: (c) => {
         this.recordatoriosActivos.set(c.recordatoriosCuotasActivos);
         this.guardandoConfig.set(false);
@@ -107,5 +133,27 @@ export class WhatsappComponent implements OnInit, OnDestroy {
         this.guardandoConfig.set(false);
       },
     });
+  }
+
+  guardarLimites(): void {
+    this.guardandoLimites.set(true);
+    this.limitesGuardados.set(false);
+    this.whatsapp
+      .actualizarConfig({
+        limiteMensajesHora: this.limiteMensajesHora,
+        limiteMensajesDia: this.limiteMensajesDia,
+      })
+      .subscribe({
+        next: (c) => {
+          this.limiteMensajesHora = c.limiteMensajesHora;
+          this.limiteMensajesDia = c.limiteMensajesDia;
+          this.guardandoLimites.set(false);
+          this.limitesGuardados.set(true);
+        },
+        error: (err) => {
+          this.error.set(extractError(err));
+          this.guardandoLimites.set(false);
+        },
+      });
   }
 }

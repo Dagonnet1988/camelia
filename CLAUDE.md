@@ -151,12 +151,14 @@ Confirma que el plan de despliegue sigue 100% nativo (systemd/pm2), sin Docker, 
   dispositivo (versión de protocolo desactualizada, error no obvio la primera vez).
 - Sesión persistida en `backend/whatsapp-session/` (gitignored — son credenciales).
 
-**Ya implementado y funcionando (verificado hasta la generación del QR; falta que el usuario
-escanee con su celular para verificar el pareo y el envío real):**
+**Ya implementado y funcionando — verificado con pareo real (el usuario escaneó el QR con su
+celular) y envío/recepción real de mensajes confirmados:**
 
-- `backend/src/whatsapp/client.ts` — conexión/sesión, reconexión automática, QR como data URL.
+- `backend/src/whatsapp/client.ts` — conexión/sesión, reconexión automática, QR como data URL,
+  `normalizarNumeroColombia()` (ver punto de +57 abajo).
 - `backend/src/routes/whatsapp.routes.ts` — `GET /status`, `POST /reconectar`, `POST /logout`,
-  `POST /enviar` (mensaje manual), `POST /recordatorios/enviar-ahora` (forzar el job).
+  `POST /enviar` (mensaje manual), `POST /recordatorios/enviar-ahora` (forzar el job),
+  `GET /historial`, `GET/PUT /config`.
 - `backend/src/whatsapp/recordatorios.ts` — cron diario 9:00am: busca cuotas `pendiente`/
   `atrasada` con vencimiento en ≤2 días y `recordatorioEnviado = false`, envía un WhatsApp al
   comprador y marca `recordatorioEnviado = true` (una sola vez por cuota, no reenvía a diario).
@@ -164,9 +166,24 @@ escanee con su celular para verificar el pareo y el envío real):**
 - **Switch on/off de los recordatorios automáticos** (pedido explícito del usuario) — tabla
   `configuracion_app` (singleton, id=1) con `recordatorios_cuotas_activos`. El switch solo
   controla el disparo automático del cron; el botón manual "enviar recordatorios ahora" siempre
-  funciona sin importar el switch. Rutas `GET/PUT /api/whatsapp/config`.
+  funciona sin importar el switch.
+- **Numero colombiano por defecto** (pedido explícito del usuario) — `normalizarNumeroColombia()`
+  antepone `57` automáticamente cuando el número tiene 10 dígitos (formato celular CO sin
+  indicativo). Se aplica tanto al envío manual como a los recordatorios de cuotas.
+- **Límites de envío por hora/día** (pedido explícito del usuario) — `configuracion_app.
+  limite_mensajes_hora` / `limite_mensajes_dia` (nullable = sin límite; default 20/hora, 100/día).
+  `backend/src/whatsapp/mensajes.ts` cuenta los mensajes `enviado` en la ventana correspondiente
+  antes de cada envío y bloquea con 429 si se supera — mitigación real contra el riesgo de
+  bloqueo por patrón de envío automatizado.
+- **Historial de mensajes** (pedido explícito del usuario) — tabla
+  `historial_mensajes_whatsapp` (numero, mensaje, tipo, estado `enviado`/`fallido`, error,
+  fecha_envio). Se registra cada intento, incluso los bloqueados por límite (con el motivo en
+  `error`). `enviarMensajeControlado()` en `mensajes.ts` es el único punto de entrada para enviar
+  — envuelve límites + historial + el envío real; tanto la ruta manual como los recordatorios
+  pasan por ahí.
 - Frontend `/whatsapp` — estado de conexión, QR para vincular, cerrar sesión, envío manual de
-  prueba, switch de recordatorios automáticos, botón para forzar el envío ahora.
+  prueba, switch de recordatorios automáticos, botón para forzar el envío ahora, edición de
+  límites hora/día, tabla de historial con botón de refrescar.
 
 **Bugs de estabilidad encontrados y corregidos durante las pruebas (importante para no
 reintroducirlos):**

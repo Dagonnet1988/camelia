@@ -42,6 +42,7 @@
       <div class="field">
         <label>Numero (celular)</label>
         <input name="numero" [(ngModel)]="numero" placeholder="3001234567" required />
+        <span class="hint">Se asume Colombia (+57) si escribes solo los 10 digitos</span>
       </div>
       <div class="field">
         <label>Mensaje</label>
@@ -78,4 +79,69 @@
   <button class="btn btn-secondary" type="button" (click)="enviarRecordatoriosAhora()" [disabled]="estado() !== 'conectado'">
     Enviar recordatorios ahora
   </button>
+</section>
+
+<section class="card" style="margin-top: 20px">
+  <h2>Limites de envio</h2>
+  <p class="hint">
+    Protegen el numero de un uso que parezca automatizado/spam. Dejar vacio = sin limite.
+  </p>
+  <div class="form-grid">
+    <div class="field">
+      <label>Mensajes por hora</label>
+      <input type="number" name="limiteMensajesHora" [(ngModel)]="limiteMensajesHora" min="1" />
+    </div>
+    <div class="field">
+      <label>Mensajes por dia</label>
+      <input type="number" name="limiteMensajesDia" [(ngModel)]="limiteMensajesDia" min="1" />
+    </div>
+    <div class="field">
+      <button class="btn" type="button" (click)="guardarLimites()" [disabled]="guardandoLimites()">
+        Guardar limites
+      </button>
+    </div>
+  </div>
+  @if (limitesGuardados()) {
+    <div class="alert-ok">Limites actualizados</div>
+  }
+</section>
+
+<section class="card" style="margin-top: 20px">
+  <h2>Historial de mensajes</h2>
+  <button class="btn btn-secondary" type="button" (click)="cargarHistorial()" style="margin-bottom: 12px">
+    Refrescar
+  </button>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Numero</th>
+          <th>Tipo</th>
+          <th>Mensaje</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (m of historial(); track m.id) {
+          <tr>
+            <td>{{ m.fechaEnvio | date: 'dd/MM/yyyy HH:mm' }}</td>
+            <td>{{ m.numero }}</td>
+            <td>{{ m.tipo }}</td>
+            <td class="mensaje-col" [title]="m.mensaje">{{ m.mensaje }}</td>
+            <td>
+              <span class="badge" [class]="'badge-' + (m.estado === 'enviado' ? 'ok' : 'atrasada')" [title]="m.error ?? ''">
+                {{ m.estado }}
+              </span>
+            </td>
+          </tr>
+        }
+        @empty {
+          <tr>
+            <td colspan="5">Sin mensajes todavia</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
 </section>

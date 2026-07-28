@@ -87,6 +87,19 @@ Al insertar una compra:
 - Gráficas del dashboard: Chart.js o similar sobre Angular.
 - Deploy: mismo servidor Contabo donde corre Ramelo. Ramelo NO usa Docker, corre directo en el servidor con Nginx como reverse proxy. Este nuevo proyecto debe seguir el mismo patrón (proceso nativo, ej. con systemd o pm2/gunicorn según el stack elegido, sin contenedores) y exponerse en un subdominio o dominio propio distinto, con su propio bloque `server` en Nginx, sin tocar ni interferir con la configuración existente de ramelo.app.
 
+### Servidor (Contabo Cloud VPS 4, 2026)
+
+- CPU: 4 núcleos vCPU
+- RAM: 8 GB
+- Almacenamiento: 100 GB SSD (+ almacenamiento adicional disponible si hace falta)
+- Snapshot: 1 incluido
+- Puerto: 200 Mbit/s
+- Corren aquí: Ramelo (ya en producción) + Camelia (este proyecto), ~2 usuarios internos por app.
+  Evaluado en 2026-07-28: holgado para esta carga (Node+Postgres+Nginx para 2 apps de bajo
+  tráfico es liviano frente a estos recursos); el único punto a vigilar a futuro es el consumo
+  de memoria del proceso de Baileys (WhatsApp) en sesiones largas — mitigar con pm2 y un límite
+  de reinicio por memoria, no por falta de capacidad del VPS.
+
 ## Primeros pasos sugeridos para Claude Code
 1. Inicializar el proyecto con el stack definido (Node backend, Angular frontend, Postgres).
 2. Definir esquema de base de datos (migraciones) según el modelo de arriba.
@@ -97,6 +110,13 @@ Al insertar una compra:
 7. Construir dashboard frontend simple.
 
 ## Backlog / Módulos futuros (no implementados aún)
+
+**Para retomar en la próxima sesión (definido 2026-07-28):**
+
+1. Integrar el módulo de WhatsApp con Baileys — ver detalle abajo. Es el que quedó más
+   avanzado en decisiones, buen punto de partida.
+2. Login básico.
+3. Despliegue (systemd/pm2 + Nginx en el Contabo).
 
 ### Login básico
 
@@ -111,24 +131,28 @@ Configuración systemd/pm2 + bloque Nginx para el subdominio en el servidor Cont
 Enviar mensajes automáticos: recordatorios de vencimiento de cuotas (`cuotas.fecha_vencimiento`),
 avisos de nueva mercancía/reabastecimiento, y potencialmente otros avisos operativos.
 
-**Decisión explícita del usuario:** NO usar la API oficial de WhatsApp Business por ahora.
-Evaluar librerías no oficiales que actualmente funcionen bien:
+**Decisión explícita del usuario:** NO usar la API oficial de WhatsApp Business. Se descartó
+whatsapp-web.js (requiere Chromium headless en el VPS) y Evolution API/WAHA (capas REST con
+multi-sesión/webhooks que no aportan nada cuando el único consumidor es este mismo backend, y
+normalmente se despliegan vía Docker).
 
-- **Baileys** (`baileys` en npm, org WhiskeySockets) — librería TS pura que habla el protocolo
-  de WhatsApp Web directamente (WebSocket), sin navegador. Se integra como dependencia dentro
-  del propio backend Node — encaja con el patrón de despliegue sin Docker de este proyecto.
-  Sesión, reconexión y rate-limiting quedan a cargo de la app. v7 en RC a mediados de 2026.
-- **whatsapp-web.js** — controla un Chromium headless real vía Puppeteer. API más simple pero
-  más pesada (requiere Chromium en el servidor) y más frágil ante cambios de WhatsApp Web.
-- **Evolution API / WAHA** — capas REST self-hosted sobre Baileys (o motores similares) con
-  soporte multi-sesión y webhooks; normalmente se despliegan vía Docker, lo cual choca con la
-  restricción de "sin Docker" del servidor Contabo salvo que se corran como proceso nativo.
+**Decidido (2026-07-28): librería `baileys`** (org WhiskeySockets), integrada como dependencia
+directa dentro del backend Node existente — sin proceso, contenedor ni Docker adicional. Esto
+también confirma que el plan de despliegue sigue 100% nativo (systemd/pm2), sin Docker, igual
+que Ramelo.
 
-**Riesgo a tener en cuenta:** todas estas opciones no oficiales violan los términos de servicio
-de WhatsApp y el número vinculado puede ser bloqueado sin aviso (reportado como riesgo real y
-creciente durante 2025-2026, no solo teórico). Mitigar con: número dedicado (no el personal),
-límites de volumen/frecuencia de envío, y patrones de envío que simulen uso humano. Evaluar
-este trade-off con el usuario antes de implementar.
+- **Fijar la versión en `6.7.19` (estable), NO `latest`/`7.0.0-rc.x`.** v7 sigue en release
+  candidate a mediados de 2026, con bugs documentados: desconexiones silenciosas del dispositivo
+  poco después de vincular, y picos de CPU altos en algunas RC (containers de referencia subiendo
+  de ~20-25% a 65-70%). Revisar upgrade a v7 solo cuando salga de RC.
+- Vigilar consumo de memoria en sesiones largas (issue conocido en versiones RC, mitigado con
+  pm2 + límite de reinicio por memoria — ver nota en sección "Servidor" arriba).
+- Riesgo a asumir: viola los términos de servicio de WhatsApp, el número vinculado puede ser
+  bloqueado sin aviso (riesgo real y creciente durante 2025-2026, no solo teórico). Mitigar con
+  número dedicado (no el personal) y bajo volumen/frecuencia de envío — el uso previsto acá
+  (recordatorios de cuotas, avisos de mercancía para un solo negocio pequeño) ya es de por sí
+  bajo volumen.
 
-Pendiente: decidir cuál librería y confirmar tolerancia al riesgo de bloqueo antes de construir
-el módulo.
+Pendiente de construir: módulo de servicio en el backend (conexión/sesión Baileys, QR de
+vinculación, cola de envío), trigger de recordatorios según `cuotas.fecha_vencimiento`, y trigger
+de aviso al registrar una `compra_inventario` nueva (o similar).

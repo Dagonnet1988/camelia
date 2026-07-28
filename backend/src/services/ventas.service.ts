@@ -9,6 +9,7 @@ export interface RegistrarVentaInput {
   codigoProducto: string;
   compradorCelular?: string;
   cantidad: number;
+  valorContado?: number;
   medioPago: MedioPago;
   numCuotas?: number;
   recargoCuotas?: number;
@@ -67,7 +68,8 @@ export async function registrarVenta(input: RegistrarVentaInput) {
 
     const cantidad = new Prisma.Decimal(input.cantidad);
     const recargoCuotas = new Prisma.Decimal(input.recargoCuotas ?? 0);
-    const valorContado = producto.valorVenta.mul(cantidad);
+    const valorContado =
+      input.valorContado !== undefined ? new Prisma.Decimal(input.valorContado) : producto.valorVenta.mul(cantidad);
     const valorTotalVenta = valorContado.add(recargoCuotas);
     const costoPromedioAlMomento = producto.costoPromedio;
     const ganancia = valorTotalVenta.sub(costoPromedioAlMomento.mul(cantidad));

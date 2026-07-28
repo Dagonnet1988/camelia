@@ -9,6 +9,7 @@ const registrarVentaSchema = z
     codigoProducto: z.string().min(1),
     compradorCelular: z.string().min(1).optional(),
     cantidad: z.number().int().positive(),
+    valorContado: z.number().nonnegative().optional(),
     medioPago: z.enum(["contado", "cuotas"]),
     numCuotas: z.number().int().min(1).max(3).optional(),
     recargoCuotas: z.number().nonnegative().optional(),

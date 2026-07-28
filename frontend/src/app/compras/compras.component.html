@@ -50,8 +50,8 @@
       <thead>
         <tr>
           <th>Producto</th>
-          <th>Cantidad</th>
-          <th>Valor unitario</th>
+          <th class="num">Cantidad</th>
+          <th class="num">Valor unitario</th>
           <th>Proveedor</th>
           <th>Fecha</th>
         </tr>
@@ -63,7 +63,7 @@
             <td class="num">{{ c.cantidad }}</td>
             <td class="num">{{ c.valorCompraUnitario }}</td>
             <td>{{ c.proveedor ?? '—' }}</td>
-            <td>{{ c.fechaCompra | date: 'dd/MM/yyyy' }}</td>
+            <td>{{ c.fechaCompra | date: 'dd/MM/yyyy':'UTC' }}</td>
           </tr>
         }
       </tbody>

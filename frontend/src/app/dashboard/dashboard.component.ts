@@ -28,8 +28,13 @@ const MONEDA = new Intl.NumberFormat('es-CO', {
   currency: 'COP',
   maximumFractionDigits: 0,
 });
-const FECHA = new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
-const MES = new Intl.DateTimeFormat('es-CO', { month: 'short', year: 'numeric' });
+const FECHA = new Intl.DateTimeFormat('es-CO', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+const MES = new Intl.DateTimeFormat('es-CO', { month: 'short', year: 'numeric', timeZone: 'UTC' });
 
 @Component({
   selector: 'app-dashboard',

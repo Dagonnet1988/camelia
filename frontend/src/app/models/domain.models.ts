@@ -61,6 +61,10 @@ export interface Cuota {
   estado: EstadoCuota;
 }
 
+export interface CuotaConVenta extends Cuota {
+  venta: Venta;
+}
+
 export interface Venta {
   id: number;
   codigoProducto: string;
@@ -82,6 +86,7 @@ export interface RegistrarVentaInput {
   codigoProducto: string;
   compradorCelular?: string;
   cantidad: number;
+  valorContado?: number;
   medioPago: MedioPago;
   numCuotas?: number;
   recargoCuotas?: number;

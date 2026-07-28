@@ -218,6 +218,11 @@ table {
     color: var(--text-secondary);
   }
 
+  .hint {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
   input,
   select {
     padding: 8px 10px;

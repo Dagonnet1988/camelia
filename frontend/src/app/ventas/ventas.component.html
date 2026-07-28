@@ -17,7 +17,12 @@
     <div class="form-grid">
       <div class="field">
         <label>Producto</label>
-        <select name="codigoProducto" [(ngModel)]="form.codigoProducto" required>
+        <select
+          name="codigoProducto"
+          [(ngModel)]="form.codigoProducto"
+          (ngModelChange)="recalcularValorSugerido()"
+          required
+        >
           <option value="" disabled>Selecciona…</option>
           @for (p of productos(); track p.codigo) {
             <option [value]="p.codigo">{{ p.nombre }} — stock {{ p.stockActual }}</option>
@@ -35,7 +40,21 @@
       </div>
       <div class="field">
         <label>Cantidad</label>
-        <input type="number" name="cantidad" [(ngModel)]="form.cantidad" min="1" required />
+        <input
+          type="number"
+          name="cantidad"
+          [(ngModel)]="form.cantidad"
+          (ngModelChange)="recalcularValorSugerido()"
+          min="1"
+          required
+        />
+      </div>
+      <div class="field">
+        <label>Valor a cobrar</label>
+        <input type="number" name="valorContado" [(ngModel)]="form.valorContado" min="0" required />
+        @if (valorCatalogo() !== null) {
+          <span class="hint">Catalogo: {{ valorCatalogo() }} — editable por descuento</span>
+        }
       </div>
       <div class="field">
         <label>Canal</label>
@@ -78,13 +97,13 @@
     <table>
       <thead>
         <tr>
-          <th>#</th>
+          <th class="num">#</th>
           <th>Producto</th>
           <th>Comprador</th>
-          <th>Cant.</th>
+          <th class="num">Cant.</th>
           <th>Medio</th>
-          <th>Total</th>
-          <th>Ganancia</th>
+          <th class="num">Total</th>
+          <th class="num">Ganancia</th>
           <th>Canal</th>
           <th>Fecha</th>
         </tr>
@@ -92,7 +111,7 @@
       <tbody>
         @for (v of ventas(); track v.id) {
           <tr>
-            <td>{{ v.id }}</td>
+            <td class="num">{{ v.id }}</td>
             <td>{{ nombreProducto(v.codigoProducto) }}</td>
             <td>{{ nombreComprador(v.compradorCelular) }}</td>
             <td class="num">{{ v.cantidad }}</td>
@@ -100,7 +119,52 @@
             <td class="num">{{ v.valorTotalVenta }}</td>
             <td class="num">{{ v.ganancia }}</td>
             <td>{{ v.canal }}</td>
-            <td>{{ v.fechaVenta | date: 'dd/MM/yyyy' }}</td>
+            <td>{{ v.fechaVenta | date: 'dd/MM/yyyy':'UTC' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card" style="margin-top: 20px">
+  <h2>Cuotas pendientes ({{ cuotasPendientes().length }})</h2>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="num">Venta #</th>
+          <th>Producto</th>
+          <th>Comprador</th>
+          <th class="num">Cuota</th>
+          <th class="num">Valor</th>
+          <th>Vence</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of cuotasPendientes(); track c.id) {
+          <tr>
+            <td class="num">{{ c.idVenta }}</td>
+            <td>{{ nombreProducto(c.venta.codigoProducto) }}</td>
+            <td>{{ nombreComprador(c.venta.compradorCelular) }}</td>
+            <td class="num">{{ c.numeroCuota }} / {{ c.venta.numCuotas }}</td>
+            <td class="num">{{ c.valorCuota }}</td>
+            <td>{{ c.fechaVencimiento | date: 'dd/MM/yyyy':'UTC' }}</td>
+            <td>
+              <span class="badge" [class]="'badge-' + c.estado">{{ c.estado }}</span>
+            </td>
+            <td>
+              <button
+                class="btn btn-secondary"
+                type="button"
+                [disabled]="pagandoCuotaId() === c.id"
+                (click)="pagarCuota(c)"
+              >
+                Marcar pagada
+              </button>
+            </td>
           </tr>
         }
       </tbody>

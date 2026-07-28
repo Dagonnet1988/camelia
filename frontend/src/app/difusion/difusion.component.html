@@ -1,0 +1,163 @@
+<header class="page-header">
+  <h1>Difusion</h1>
+  <p>Envia un aviso (ej. nueva mercancia) a varios compradores, con retraso entre cada uno para proteger el numero</p>
+</header>
+
+<section class="card">
+  <h2>Nuevo envio masivo</h2>
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+  @if (exito()) {
+    <div class="alert-ok">{{ exito() }}</div>
+  }
+
+  <div class="field" style="margin-bottom: 16px">
+    <label>Mensaje</label>
+    <textarea name="mensaje" [(ngModel)]="mensaje" rows="3" placeholder="Llego nueva mercancia, ven a verla..."></textarea>
+  </div>
+
+  <div class="destinatarios-header">
+    <label>Destinatarios ({{ seleccionados.size }} / {{ compradores().length }} seleccionados)</label>
+    <div class="filter-row">
+      <button type="button" (click)="seleccionarTodos()">Seleccionar todos</button>
+      <button type="button" (click)="deseleccionarTodos()">Ninguno</button>
+    </div>
+  </div>
+
+  <div class="destinatarios-lista">
+    @for (c of compradores(); track c.celular) {
+      <label class="destinatario-item">
+        <input type="checkbox" [checked]="estaSeleccionado(c.celular)" (change)="toggleSeleccion(c.celular)" />
+        {{ c.nombre }} <span class="hint">({{ c.celular }})</span>
+      </label>
+    }
+    @empty {
+      <p class="hint">No hay compradores registrados todavia.</p>
+    }
+  </div>
+
+  <button class="btn" type="button" (click)="crearEnvio()" [disabled]="enviando()" style="margin-top: 16px">
+    Crear envio masivo
+  </button>
+</section>
+
+<section class="card" style="margin-top: 20px">
+  <h2>Retraso entre mensajes</h2>
+  <p class="hint">
+    Cada mensaje de la cola espera un tiempo aleatorio entre estos dos valores antes de enviar el
+    siguiente, para que el patron de envio no parezca automatizado.
+  </p>
+  <div class="form-grid">
+    <div class="field">
+      <label>Minimo (segundos)</label>
+      <input type="number" name="delayMin" [(ngModel)]="delayMinSeg" min="1" />
+    </div>
+    <div class="field">
+      <label>Maximo (segundos)</label>
+      <input type="number" name="delayMax" [(ngModel)]="delayMaxSeg" min="1" />
+    </div>
+    <div class="field">
+      <button class="btn" type="button" (click)="guardarDelay()" [disabled]="guardandoDelay()">Guardar</button>
+    </div>
+  </div>
+  @if (delayGuardado()) {
+    <div class="alert-ok">Retraso actualizado</div>
+  }
+</section>
+
+<section class="card" style="margin-top: 20px">
+  <h2>Envios masivos</h2>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="num">#</th>
+          <th>Mensaje</th>
+          <th>Estado</th>
+          <th class="num">Progreso</th>
+          <th class="num">Fallidos</th>
+          <th>Creado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (e of envios(); track e.id) {
+          <tr>
+            <td class="num">{{ e.id }}</td>
+            <td class="mensaje-col" [title]="e.mensaje">{{ e.mensaje }}</td>
+            <td>
+              <span
+                class="badge"
+                [class]="
+                  'badge-' +
+                  (e.estado === 'completado'
+                    ? 'ok'
+                    : e.estado === 'cancelado'
+                      ? 'atrasada'
+                      : 'pendiente')
+                "
+              >
+                {{ e.estado }}
+              </span>
+            </td>
+            <td class="num">{{ e.enviados }} / {{ e.totalDestinatarios }}</td>
+            <td class="num">{{ e.fallidos }}</td>
+            <td>{{ e.fechaCreacion | date: 'dd/MM/yyyy HH:mm' }}</td>
+            <td>
+              <button class="btn btn-secondary" type="button" (click)="verDetalle(e.id)">Ver</button>
+              @if (e.estado === 'pendiente' || e.estado === 'en_progreso') {
+                <button class="btn btn-danger" type="button" (click)="cancelar(e.id)">Cancelar</button>
+              }
+            </td>
+          </tr>
+        }
+        @empty {
+          <tr>
+            <td colspan="7">Sin envios todavia</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (detalleAbierto(); as detalle) {
+    <div class="detalle-box">
+      <div class="detalle-header">
+        <h3>Detalle envio #{{ detalle.id }}</h3>
+        <button class="btn btn-secondary" type="button" (click)="cerrarDetalle()">Cerrar</button>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Comprador</th>
+              <th>Celular</th>
+              <th>Estado</th>
+              <th>Fecha envio</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (d of detalle.destinatarios; track d.id) {
+              <tr>
+                <td>{{ d.nombre }}</td>
+                <td>{{ d.compradorCelular }}</td>
+                <td>
+                  <span
+                    class="badge"
+                    [class]="'badge-' + (d.estado === 'enviado' ? 'ok' : d.estado === 'fallido' ? 'atrasada' : 'pendiente')"
+                    [title]="d.error ?? ''"
+                  >
+                    {{ d.estado }}
+                  </span>
+                </td>
+                <td>{{ d.fechaEnvio ? (d.fechaEnvio | date: 'dd/MM/yyyy HH:mm') : '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</section>

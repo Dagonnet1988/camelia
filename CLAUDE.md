@@ -113,12 +113,11 @@ Al insertar una compra:
 
 ## Backlog / Módulos futuros (no implementados aún)
 
-**Para retomar en la próxima sesión (definido 2026-07-28):**
+**Estado (actualizado 2026-07-28):** el módulo de WhatsApp (conexión, recordatorios, límites,
+historial, envíos masivos) está completo y probado con envío real. Queda por hacer:
 
-1. Integrar el módulo de WhatsApp con Baileys — ver detalle abajo. Es el que quedó más
-   avanzado en decisiones, buen punto de partida.
-2. Login básico.
-3. Despliegue (systemd/pm2 + Nginx en el Contabo).
+1. Login básico.
+2. Despliegue (systemd/pm2 + Nginx en el Contabo).
 
 ### Login básico
 
@@ -128,7 +127,7 @@ Autenticación simple de uno o pocos usuarios (ver "Alcance"). Pendiente.
 
 Configuración systemd/pm2 + bloque Nginx para el subdominio en el servidor Contabo (sin Docker, mismo patrón que Ramelo). Pendiente.
 
-### Módulo de notificaciones por WhatsApp — EN CONSTRUCCIÓN (2026-07-28)
+### Módulo de notificaciones por WhatsApp — COMPLETO (2026-07-28)
 
 Enviar mensajes automáticos: recordatorios de vencimiento de cuotas (`cuotas.fecha_vencimiento`),
 avisos de nueva mercancía/reabastecimiento, y potencialmente otros avisos operativos.
@@ -184,6 +183,23 @@ celular) y envío/recepción real de mensajes confirmados:**
 - Frontend `/whatsapp` — estado de conexión, QR para vincular, cerrar sesión, envío manual de
   prueba, switch de recordatorios automáticos, botón para forzar el envío ahora, edición de
   límites hora/día, tabla de historial con botón de refrescar.
+- **Módulo de envíos masivos / "aviso de nueva mercancía"** (pedido explícito del usuario,
+  resuelve el punto que había quedado pendiente de decidir) — se implementó como acción manual:
+  el dueño compone el mensaje, elige a qué compradores enviar (checkboxes, con "seleccionar
+  todos"), y la cola se procesa con un retraso aleatorio configurable entre cada envío (min/max
+  segundos, default 5-15s) para no parecer un patrón automatizado. Modelos `EnvioMasivo` +
+  `EnvioMasivoDestinatario` (estados `pendiente/en_progreso/completado/cancelado` y
+  `pendiente/enviado/fallido` respectivamente). `backend/src/whatsapp/envios-masivos.ts` corre
+  un cron cada minuto (`procesarEnviosMasivosPendientes`) que retoma cualquier campaña con
+  destinatarios pendientes — resiliente a reinicios del servidor porque el estado vive en la
+  BD, no en memoria. Si se alcanza el límite de mensajes por hora/día a mitad de una campaña, se
+  pausa sola (sin ensuciar el historial con reintentos fallidos) y se retoma cuando el límite se
+  libera. Cada envío individual pasa por `enviarMensajeControlado()`, así que respeta límites e
+  historial igual que cualquier otro mensaje. Frontend en `/difusion`: compositor, selector de
+  destinatarios, configuración de retraso, tabla de campañas con progreso en vivo (poll cada 4s)
+  y detalle expandible por destinatario. Botón de cancelar detiene los destinatarios pendientes
+  sin afectar los ya enviados.
+  Probado end-to-end con delay corto (2-4s) verificando timestamps reales entre envíos.
 
 **Bugs de estabilidad encontrados y corregidos durante las pruebas (importante para no
 reintroducirlos):**
@@ -202,11 +218,6 @@ reintroducirlos):**
 3. Verificar que solo corra **un** `tsx watch` a la vez (`lsof -ti:3000 -sTCP:LISTEN`) — tener dos
    procesos de dev corriendo en paralelo generó comportamiento confuso (config con valores
    inesperados) durante el desarrollo de este módulo.
-
-**Pendiente de decidir:** el disparador de "aviso de nueva mercancía/reabastecimiento" NO se
-implementó todavía — quedó pendiente definir si es automático al registrar una
-`compra_inventario` (riesgo de spamear compradores en cada reabastecimiento) o una acción manual
-donde el dueño elige a quién avisar. Evaluar con el usuario antes de construirlo.
 
 **Riesgo a asumir (sin cambios):** viola los términos de servicio de WhatsApp, el número
 vinculado puede ser bloqueado sin aviso. Mitigar con número dedicado y bajo volumen — el uso

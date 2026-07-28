@@ -12,6 +12,8 @@ export interface CambiosConfiguracion {
   recordatoriosCuotasActivos?: boolean;
   limiteMensajesHora?: number | null;
   limiteMensajesDia?: number | null;
+  envioMasivoDelayMinSeg?: number;
+  envioMasivoDelayMaxSeg?: number;
 }
 
 export async function actualizarConfiguracion(cambios: CambiosConfiguracion) {

@@ -112,6 +112,8 @@ model ConfiguracionApp {
   recordatoriosCuotasActivos Boolean @default(true) @map("recordatorios_cuotas_activos")
   limiteMensajesHora         Int?    @default(20) @map("limite_mensajes_hora")
   limiteMensajesDia          Int?    @default(100) @map("limite_mensajes_dia")
+  envioMasivoDelayMinSeg     Int     @default(5) @map("envio_masivo_delay_min_seg")
+  envioMasivoDelayMaxSeg     Int     @default(15) @map("envio_masivo_delay_max_seg")
 
   @@map("configuracion_app")
 }
@@ -131,4 +133,46 @@ model HistorialMensajeWhatsapp {
   fechaEnvio DateTime              @default(now()) @map("fecha_envio")
 
   @@map("historial_mensajes_whatsapp")
+}
+
+enum EstadoEnvioMasivo {
+  pendiente
+  en_progreso
+  completado
+  cancelado
+}
+
+enum EstadoEnvioDestinatario {
+  pendiente
+  enviado
+  fallido
+}
+
+model EnvioMasivo {
+  id                 Int               @id @default(autoincrement())
+  mensaje            String
+  estado             EstadoEnvioMasivo @default(pendiente)
+  totalDestinatarios Int               @map("total_destinatarios")
+  enviados           Int               @default(0)
+  fallidos           Int               @default(0)
+  fechaCreacion      DateTime          @default(now()) @map("fecha_creacion")
+  fechaFin           DateTime?         @map("fecha_fin")
+
+  destinatarios EnvioMasivoDestinatario[]
+
+  @@map("envios_masivos")
+}
+
+model EnvioMasivoDestinatario {
+  id               Int                     @id @default(autoincrement())
+  envioMasivoId    Int                     @map("envio_masivo_id")
+  compradorCelular String                  @map("comprador_celular")
+  nombre           String
+  estado           EstadoEnvioDestinatario @default(pendiente)
+  error            String?
+  fechaEnvio       DateTime?               @map("fecha_envio")
+
+  envioMasivo EnvioMasivo @relation(fields: [envioMasivoId], references: [id])
+
+  @@map("envios_masivos_destinatarios")
 }

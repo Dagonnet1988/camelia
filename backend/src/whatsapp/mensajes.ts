@@ -34,6 +34,17 @@ async function verificarLimites(): Promise<void> {
   }
 }
 
+/** Chequeo "silencioso" (sin dejar rastro en el historial) usado por el procesador de la cola
+ * de envios masivos para saber si puede seguir mandando sin intentarlo primero. */
+export async function limiteDisponible(): Promise<boolean> {
+  try {
+    await verificarLimites();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Envia un mensaje respetando los limites configurados y deja registro en el historial,
  * tanto si se envia con exito como si falla (por limite excedido o error de WhatsApp).

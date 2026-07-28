@@ -21,6 +21,7 @@ import { productosRouter } from "./routes/productos.routes";
 import { ventasRouter } from "./routes/ventas.routes";
 import { whatsappRouter } from "./routes/whatsapp.routes";
 import { iniciarWhatsapp } from "./whatsapp/client";
+import { programarEnviosMasivos } from "./whatsapp/envios-masivos";
 import { programarRecordatoriosCuotas } from "./whatsapp/recordatorios";
 
 const app = express();
@@ -49,3 +50,4 @@ app.listen(PORT, () => {
 
 iniciarWhatsapp().catch((err) => console.error("Error iniciando WhatsApp:", err));
 programarRecordatoriosCuotas();
+programarEnviosMasivos();

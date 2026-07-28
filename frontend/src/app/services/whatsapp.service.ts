@@ -2,6 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import type {
   ConfiguracionWhatsapp,
+  CrearEnvioMasivoInput,
+  EnvioMasivo,
+  EnvioMasivoConDetalle,
   EstadoMensajeWhatsapp,
   EstadoWhatsappResponse,
   HistorialMensajeWhatsapp,
@@ -45,5 +48,21 @@ export class WhatsappService {
     return this.http.get<HistorialMensajeWhatsapp[]>(`${BASE}/historial`, {
       params: estado ? { estado } : {},
     });
+  }
+
+  crearEnvioMasivo(input: CrearEnvioMasivoInput) {
+    return this.http.post<EnvioMasivoConDetalle>(`${BASE}/envios-masivos`, input);
+  }
+
+  listarEnviosMasivos() {
+    return this.http.get<EnvioMasivo[]>(`${BASE}/envios-masivos`);
+  }
+
+  obtenerEnvioMasivo(id: number) {
+    return this.http.get<EnvioMasivoConDetalle>(`${BASE}/envios-masivos/${id}`);
+  }
+
+  cancelarEnvioMasivo(id: number) {
+    return this.http.post<EnvioMasivo>(`${BASE}/envios-masivos/${id}/cancelar`, {});
   }
 }

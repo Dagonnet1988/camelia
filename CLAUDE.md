@@ -66,6 +66,8 @@ Al insertar una compra:
 - fecha_vencimiento (date)
 - fecha_pago (date, nullable — null = aún no pagada)
 - estado (enum: 'pendiente', 'pagada', 'atrasada')
+- recordatorio_enviado (boolean, default false — evita reenviar el recordatorio de WhatsApp
+  varias veces por la misma cuota)
 
 ## Métricas / dashboard que debe entregar la app
 
@@ -126,7 +128,7 @@ Autenticación simple de uno o pocos usuarios (ver "Alcance"). Pendiente.
 
 Configuración systemd/pm2 + bloque Nginx para el subdominio en el servidor Contabo (sin Docker, mismo patrón que Ramelo). Pendiente.
 
-### Módulo de notificaciones por WhatsApp
+### Módulo de notificaciones por WhatsApp — EN CONSTRUCCIÓN (2026-07-28)
 
 Enviar mensajes automáticos: recordatorios de vencimiento de cuotas (`cuotas.fecha_vencimiento`),
 avisos de nueva mercancía/reabastecimiento, y potencialmente otros avisos operativos.
@@ -136,23 +138,37 @@ whatsapp-web.js (requiere Chromium headless en el VPS) y Evolution API/WAHA (cap
 multi-sesión/webhooks que no aportan nada cuando el único consumidor es este mismo backend, y
 normalmente se despliegan vía Docker).
 
-**Decidido (2026-07-28): librería `baileys`** (org WhiskeySockets), integrada como dependencia
-directa dentro del backend Node existente — sin proceso, contenedor ni Docker adicional. Esto
-también confirma que el plan de despliegue sigue 100% nativo (systemd/pm2), sin Docker, igual
-que Ramelo.
+**Librería:** `baileys` (org WhiskeySockets), integrada como dependencia directa dentro del
+backend Node existente en `backend/src/whatsapp/` — sin proceso, contenedor ni Docker adicional.
+Confirma que el plan de despliegue sigue 100% nativo (systemd/pm2), sin Docker, igual que Ramelo.
 
-- **Fijar la versión en `6.7.19` (estable), NO `latest`/`7.0.0-rc.x`.** v7 sigue en release
-  candidate a mediados de 2026, con bugs documentados: desconexiones silenciosas del dispositivo
-  poco después de vincular, y picos de CPU altos en algunas RC (containers de referencia subiendo
-  de ~20-25% a 65-70%). Revisar upgrade a v7 solo cuando salga de RC.
-- Vigilar consumo de memoria en sesiones largas (issue conocido en versiones RC, mitigado con
-  pm2 + límite de reinicio por memoria — ver nota en sección "Servidor" arriba).
-- Riesgo a asumir: viola los términos de servicio de WhatsApp, el número vinculado puede ser
-  bloqueado sin aviso (riesgo real y creciente durante 2025-2026, no solo teórico). Mitigar con
-  número dedicado (no el personal) y bajo volumen/frecuencia de envío — el uso previsto acá
-  (recordatorios de cuotas, avisos de mercancía para un solo negocio pequeño) ya es de por sí
-  bajo volumen.
+- **Version pinneada en `6.7.23` (exacta, sin `^`), no `6.7.19` ni `7.0.0-rc.x`.** Al integrar se
+  encontró que 6.7.19 (la que se había evaluado como "estable") tiene una vulnerabilidad crítica
+  parchada en 6.7.22 (spoofing de mensajes vía `protocolMessage` manipulado, GHSA-qvv5-jq5g-4cgg).
+  v7 sigue en RC con bugs de desconexión/CPU documentados — revisar upgrade cuando salga de RC.
+- `makeWASocket` requiere pasar explícitamente `version` obtenido de `fetchLatestBaileysVersion()`
+  — sin esto la conexión falla con un 405 "Connection Failure" al intentar registrar el
+  dispositivo (versión de protocolo desactualizada, error no obvio la primera vez).
+- Sesión persistida en `backend/whatsapp-session/` (gitignored — son credenciales).
 
-Pendiente de construir: módulo de servicio en el backend (conexión/sesión Baileys, QR de
-vinculación, cola de envío), trigger de recordatorios según `cuotas.fecha_vencimiento`, y trigger
-de aviso al registrar una `compra_inventario` nueva (o similar).
+**Ya implementado y funcionando (verificado hasta la generación del QR; falta que el usuario
+escanee con su celular para verificar el pareo y el envío real):**
+
+- `backend/src/whatsapp/client.ts` — conexión/sesión, reconexión automática, QR como data URL.
+- `backend/src/routes/whatsapp.routes.ts` — `GET /status`, `POST /reconectar`, `POST /logout`,
+  `POST /enviar` (mensaje manual), `POST /recordatorios/enviar-ahora` (forzar el job).
+- `backend/src/whatsapp/recordatorios.ts` — cron diario 9:00am: busca cuotas `pendiente`/
+  `atrasada` con vencimiento en ≤2 días y `recordatorioEnviado = false`, envía un WhatsApp al
+  comprador y marca `recordatorioEnviado = true` (una sola vez por cuota, no reenvía a diario).
+  Requirió migración: `cuotas.recordatorio_enviado boolean default false`.
+- Frontend `/whatsapp` — estado de conexión, QR para vincular, cerrar sesión, envío manual de
+  prueba, botón para forzar el envío de recordatorios.
+
+**Pendiente de decidir:** el disparador de "aviso de nueva mercancía/reabastecimiento" NO se
+implementó todavía — quedó pendiente definir si es automático al registrar una
+`compra_inventario` (riesgo de spamear compradores en cada reabastecimiento) o una acción manual
+donde el dueño elige a quién avisar. Evaluar con el usuario antes de construirlo.
+
+**Riesgo a asumir (sin cambios):** viola los términos de servicio de WhatsApp, el número
+vinculado puede ser bloqueado sin aviso. Mitigar con número dedicado y bajo volumen — el uso
+previsto aquí ya es de por sí bajo volumen.

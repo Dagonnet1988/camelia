@@ -1,0 +1,66 @@
+<header class="page-header">
+  <h1>WhatsApp</h1>
+  <p>Vincula el numero para recordatorios de cuotas y avisos manuales</p>
+</header>
+
+<section class="card">
+  <h2>Estado de la conexion</h2>
+
+  <div class="estado-row">
+    <span class="badge" [class]="'badge-' + (estado() === 'conectado' ? 'ok' : estado() === 'esperando_qr' ? 'pendiente' : 'atrasada')">
+      {{ estado() }}
+    </span>
+
+    @if (estado() === 'desconectado') {
+      <button class="btn" type="button" (click)="reconectar()">Generar QR / Reconectar</button>
+    }
+    @if (estado() === 'conectado') {
+      <button class="btn btn-danger" type="button" (click)="cerrarSesion()">Cerrar sesion</button>
+    }
+  </div>
+
+  @if (estado() === 'esperando_qr' && qr()) {
+    <div class="qr-box">
+      <img [src]="qr()" alt="Codigo QR de WhatsApp" />
+      <p class="hint">Abre WhatsApp en tu celular → Dispositivos vinculados → Vincular un dispositivo</p>
+    </div>
+  }
+</section>
+
+<section class="card" style="margin-top: 20px">
+  <h2>Enviar mensaje manual</h2>
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+  @if (exito()) {
+    <div class="alert-ok">{{ exito() }}</div>
+  }
+
+  <form (ngSubmit)="enviarMensaje()">
+    <div class="form-grid">
+      <div class="field">
+        <label>Numero (celular)</label>
+        <input name="numero" [(ngModel)]="numero" placeholder="3001234567" required />
+      </div>
+      <div class="field">
+        <label>Mensaje</label>
+        <input name="texto" [(ngModel)]="texto" placeholder="Llego nueva mercancia..." required />
+      </div>
+      <div class="field">
+        <button class="btn" type="submit" [disabled]="enviando() || estado() !== 'conectado'">Enviar</button>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section class="card" style="margin-top: 20px">
+  <h2>Recordatorios de cuotas</h2>
+  <p class="hint">
+    Se envian automaticamente todos los dias a las 9:00am (cuotas que vencen en los proximos 2 dias
+    o ya atrasadas, una sola vez por cuota). Tambien puedes forzar el envio ahora:
+  </p>
+  <button class="btn btn-secondary" type="button" (click)="enviarRecordatoriosAhora()" [disabled]="estado() !== 'conectado'">
+    Enviar recordatorios ahora
+  </button>
+</section>

@@ -8,6 +8,9 @@ import { cuotasRouter } from "./routes/cuotas.routes";
 import { metricsRouter } from "./routes/metrics.routes";
 import { productosRouter } from "./routes/productos.routes";
 import { ventasRouter } from "./routes/ventas.routes";
+import { whatsappRouter } from "./routes/whatsapp.routes";
+import { iniciarWhatsapp } from "./whatsapp/client";
+import { programarRecordatoriosCuotas } from "./whatsapp/recordatorios";
 
 const app = express();
 app.use(express.json());
@@ -25,9 +28,13 @@ app.use("/api/compradores", compradoresRouter);
 app.use("/api/ventas", ventasRouter);
 app.use("/api/cuotas", cuotasRouter);
 app.use("/api/metrics", metricsRouter);
+app.use("/api/whatsapp", whatsappRouter);
 
 app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Camelia API escuchando en el puerto ${PORT}`);
 });
+
+iniciarWhatsapp().catch((err) => console.error("Error iniciando WhatsApp:", err));
+programarRecordatoriosCuotas();

@@ -100,6 +100,7 @@ model Cuota {
   fechaVencimiento DateTime    @map("fecha_vencimiento") @db.Date
   fechaPago        DateTime?   @map("fecha_pago") @db.Date
   estado           EstadoCuota @default(pendiente)
+  recordatorioEnviado Boolean  @default(false) @map("recordatorio_enviado")
 
   venta Venta @relation(fields: [idVenta], references: [id])
 

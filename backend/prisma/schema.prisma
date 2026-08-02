@@ -176,3 +176,21 @@ model EnvioMasivoDestinatario {
 
   @@map("envios_masivos_destinatarios")
 }
+
+enum RolUsuario {
+  admin
+  user
+}
+
+model Usuario {
+  id                  Int        @id @default(autoincrement())
+  usuario             String     @unique
+  nombre              String
+  apellido            String
+  rol                 RolUsuario @default(user)
+  passwordHash        String     @map("password_hash")
+  debeCambiarPassword Boolean    @default(true) @map("debe_cambiar_password")
+  fechaCreacion       DateTime   @default(now()) @map("fecha_creacion")
+
+  @@map("usuarios")
+}

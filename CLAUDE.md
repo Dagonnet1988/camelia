@@ -11,7 +11,8 @@ sin interferir con Ramelo.
 ## Alcance
 App simple, uso interno (yo/mi negocio), no multi-tenant, no necesita
 autenticación compleja (con login básico de un solo usuario o unos pocos
-usuarios es suficiente).
+usuarios es suficiente). **Login implementado (2026-08-01)** — ver modelo
+`usuarios` abajo y detalle en el backlog.
 
 ## Modelo de datos
 
@@ -69,6 +70,20 @@ Al insertar una compra:
 - recordatorio_enviado (boolean, default false — evita reenviar el recordatorio de WhatsApp
   varias veces por la misma cuota)
 
+### usuarios (login — agregado 2026-08-01)
+- id (PK)
+- usuario (string, único — funciona como login, no necesariamente una cédula aunque el admin
+  seed usa una)
+- nombre
+- apellido
+- rol (enum: 'admin', 'user') — única diferencia funcional: admin ve el módulo de crear
+  usuarios, user no. Todo lo demás del acceso es igual para ambos roles.
+- password_hash (bcrypt, nunca se expone en ninguna respuesta de la API)
+- debe_cambiar_password (boolean, default true) — se pone en `false` al cambiar la contraseña
+  exitosamente. Al crear un usuario nuevo desde el módulo de admin, la contraseña inicial es
+  igual al `usuario` y este flag queda en `true`, forzando el cambio en el primer login.
+- fecha_creacion
+
 ## Métricas / dashboard que debe entregar la app
 
 1. **Top productos** — más vendidos por unidades y por ingresos (pueden diferir).
@@ -113,15 +128,39 @@ Al insertar una compra:
 
 ## Backlog / Módulos futuros (no implementados aún)
 
-**Estado (actualizado 2026-07-28):** el módulo de WhatsApp (conexión, recordatorios, límites,
-historial, envíos masivos) está completo y probado con envío real. Queda por hacer:
+**Estado (actualizado 2026-08-01):** el módulo de WhatsApp (conexión, recordatorios, límites,
+historial, envíos masivos) y el login básico están completos y probados. Queda por hacer:
 
-1. Login básico.
-2. Despliegue (systemd/pm2 + Nginx en el Contabo).
+1. Despliegue (systemd/pm2 + Nginx en el Contabo).
+2. Hacer responsive todas las vistas (celular/tablet/PC) — en curso.
 
-### Login básico
+### Login básico — COMPLETO (2026-08-01)
 
-Autenticación simple de uno o pocos usuarios (ver "Alcance"). Pendiente.
+Login con JWT en cookie httpOnly (`camelia_token`, 7 días), `bcryptjs` para hashear password,
+`cookie-parser` para leerla. `requireAuth` (verifica JWT + carga el usuario fresco de la BD en
+cada request, así que un cambio de rol o password aplica de inmediato) y `requireAdmin` en
+`backend/src/lib/auth-middleware.ts`.
+
+- Rutas en `backend/src/routes/auth.routes.ts`: `POST /login`, `POST /logout`, `GET /me`,
+  `POST /cambiar-password`. `POST /login` y `POST /logout` son públicas; el resto de rutas de la
+  API (incluidas `/me` y `/cambiar-password`) exigen `requireAuth`.
+- `backend/src/routes/usuarios.routes.ts` (`GET/POST /api/usuarios`) montada con
+  `requireAuth + requireAdmin` — por eso "el admin puede ver el módulo de crear usuario y el
+  user no" se cumple también a nivel de API, no solo ocultando el link en el front.
+- Usuario nuevo: contraseña inicial = mismo `usuario`, `debe_cambiar_password = true`. Al
+  cambiarla se pone en `false`. Roles: `admin` y `user` — única diferencia funcional es el
+  acceso al módulo de usuarios.
+- Seed del admin: `backend/src/scripts/seed-admin.ts` (`npm run seed:admin`, idempotente vía
+  upsert). Usuario `1054988359` / Diego Sánchez / admin / password `Dagonnet1` —
+  `debe_cambiar_password = false` porque se le dio una contraseña real explícita, a diferencia
+  de los usuarios creados desde el módulo de admin.
+- Frontend: `AuthService` (señal `usuario`, siempre revalida contra `/api/auth/me`),
+  `authGuard` (redirige a `/login` si no hay sesión, a `/cambiar-password` si
+  `debeCambiarPassword` y la ruta no es esa), `adminGuard` (además exige rol admin),
+  interceptor que redirige a `/login` ante cualquier 401. Páginas `/login`,
+  `/cambiar-password`, `/usuarios` (solo admin, oculta el link de nav si no lo es).
+- Requiere `JWT_SECRET` en `.env` (generado con `openssl rand -hex 48`) — variable nueva a
+  configurar también en el servidor de producción.
 
 ### Despliegue
 

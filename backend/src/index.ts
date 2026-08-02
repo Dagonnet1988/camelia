@@ -1,4 +1,5 @@
 import "dotenv/config";
+import cookieParser from "cookie-parser";
 import express from "express";
 import { errorHandler } from "./lib/http";
 
@@ -12,12 +13,15 @@ process.on("uncaughtException", (err) => {
   console.error("[proceso] Excepcion no capturada:", err);
 });
 
+import { requireAdmin, requireAuth } from "./lib/auth-middleware";
 import { prisma } from "./lib/prisma";
+import { authRouter } from "./routes/auth.routes";
 import { comprasRouter } from "./routes/compras.routes";
 import { compradoresRouter } from "./routes/compradores.routes";
 import { cuotasRouter } from "./routes/cuotas.routes";
 import { metricsRouter } from "./routes/metrics.routes";
 import { productosRouter } from "./routes/productos.routes";
+import { usuariosRouter } from "./routes/usuarios.routes";
 import { ventasRouter } from "./routes/ventas.routes";
 import { whatsappRouter } from "./routes/whatsapp.routes";
 import { iniciarWhatsapp } from "./whatsapp/client";
@@ -26,6 +30,7 @@ import { programarRecordatoriosCuotas } from "./whatsapp/recordatorios";
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 
 const PORT = process.env["PORT"] ?? 3000;
 
@@ -34,13 +39,17 @@ app.get("/health", async (_req, res) => {
   res.json({ status: "ok" });
 });
 
-app.use("/api/productos", productosRouter);
-app.use("/api/compras", comprasRouter);
-app.use("/api/compradores", compradoresRouter);
-app.use("/api/ventas", ventasRouter);
-app.use("/api/cuotas", cuotasRouter);
-app.use("/api/metrics", metricsRouter);
-app.use("/api/whatsapp", whatsappRouter);
+// /api/auth/login y /logout son publicas; /me y /cambiar-password se protegen adentro del router.
+app.use("/api/auth", authRouter);
+
+app.use("/api/productos", requireAuth, productosRouter);
+app.use("/api/compras", requireAuth, comprasRouter);
+app.use("/api/compradores", requireAuth, compradoresRouter);
+app.use("/api/ventas", requireAuth, ventasRouter);
+app.use("/api/cuotas", requireAuth, cuotasRouter);
+app.use("/api/metrics", requireAuth, metricsRouter);
+app.use("/api/whatsapp", requireAuth, whatsappRouter);
+app.use("/api/usuarios", requireAuth, requireAdmin, usuariosRouter);
 
 app.use(errorHandler);
 

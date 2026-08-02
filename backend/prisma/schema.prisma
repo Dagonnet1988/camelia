@@ -179,6 +179,7 @@ model EnvioMasivoDestinatario {
 
 enum RolUsuario {
   admin
+  manager
   user
 }
 

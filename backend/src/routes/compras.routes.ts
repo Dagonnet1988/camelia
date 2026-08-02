@@ -1,8 +1,16 @@
 import { Router } from "express";
 import { z } from "zod";
+import { CATEGORIAS_PRODUCTO } from "../lib/constantes";
 import { asyncHandler } from "../lib/http";
 import { validateBody } from "../lib/validate";
 import * as comprasService from "../services/compras.service";
+
+const productoNuevoSchema = z.object({
+  nombre: z.string().min(1),
+  categoria: z.enum(CATEGORIAS_PRODUCTO),
+  valorVenta: z.number().positive(),
+  stockMinimo: z.number().int().nonnegative().optional(),
+});
 
 const registrarCompraSchema = z.object({
   codigoProducto: z.string().min(1),
@@ -10,6 +18,7 @@ const registrarCompraSchema = z.object({
   valorCompraUnitario: z.number().positive(),
   proveedor: z.string().min(1).optional(),
   fechaCompra: z.coerce.date().optional(),
+  productoNuevo: productoNuevoSchema.optional(),
 });
 
 export const comprasRouter = Router();

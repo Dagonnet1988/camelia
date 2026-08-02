@@ -1,6 +1,14 @@
 import { Prisma } from "../generated/prisma/client";
+import type { CategoriaProducto } from "../generated/prisma/enums";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../lib/http";
+
+export interface ProductoNuevoInput {
+  nombre: string;
+  categoria: CategoriaProducto;
+  valorVenta: number;
+  stockMinimo?: number;
+}
 
 export interface RegistrarCompraInput {
   codigoProducto: string;
@@ -8,6 +16,8 @@ export interface RegistrarCompraInput {
   valorCompraUnitario: number;
   proveedor?: string;
   fechaCompra?: Date;
+  // Si codigoProducto no existe todavia, se usa esto para crearlo de una vez (alta desde Compras).
+  productoNuevo?: ProductoNuevoInput;
 }
 
 export function listarCompras(codigoProducto?: string) {
@@ -19,8 +29,25 @@ export function listarCompras(codigoProducto?: string) {
 
 export async function registrarCompra(input: RegistrarCompraInput) {
   return prisma.$transaction(async (tx) => {
-    const producto = await tx.producto.findUnique({ where: { codigo: input.codigoProducto } });
-    if (!producto) throw new ApiError(404, `Producto ${input.codigoProducto} no existe`);
+    let producto = await tx.producto.findUnique({ where: { codigo: input.codigoProducto } });
+
+    if (!producto) {
+      if (!input.productoNuevo) {
+        throw new ApiError(
+          404,
+          `Producto ${input.codigoProducto} no existe. Incluye productoNuevo (nombre, categoria, valorVenta) para crearlo con esta compra.`,
+        );
+      }
+      producto = await tx.producto.create({
+        data: {
+          codigo: input.codigoProducto,
+          nombre: input.productoNuevo.nombre,
+          categoria: input.productoNuevo.categoria,
+          valorVenta: input.productoNuevo.valorVenta,
+          stockMinimo: input.productoNuevo.stockMinimo ?? 0,
+        },
+      });
+    }
 
     const stockPrevio = producto.stockActual;
     const costoPrevio = producto.costoPromedio;

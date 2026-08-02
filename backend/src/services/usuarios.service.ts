@@ -46,3 +46,17 @@ export async function crearUsuario(input: CrearUsuarioInput) {
     select: SELECT_PUBLICO,
   });
 }
+
+// Resetea la clave al mismo nombre de usuario (igual que al crearlo) y vuelve a obligar el cambio.
+export async function resetearPassword(id: number) {
+  const usuario = await prisma.usuario.findUnique({ where: { id } });
+  if (!usuario) throw new ApiError(404, `Usuario ${id} no existe`);
+
+  const passwordHash = await hashPassword(usuario.usuario);
+
+  return prisma.usuario.update({
+    where: { id },
+    data: { passwordHash, debeCambiarPassword: true },
+    select: SELECT_PUBLICO,
+  });
+}

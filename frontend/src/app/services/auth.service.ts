@@ -42,6 +42,11 @@ export class AuthService {
     return this.usuario()?.rol === 'admin';
   }
 
+  esManagerOAdmin(): boolean {
+    const rol = this.usuario()?.rol;
+    return rol === 'admin' || rol === 'manager';
+  }
+
   estaAutenticado() {
     return this.cargarSesion().pipe(map((u) => u !== null));
   }

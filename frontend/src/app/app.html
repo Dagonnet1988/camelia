@@ -1,6 +1,8 @@
 @if (auth.usuario(); as u) {
   <nav class="main-nav">
-    <span class="brand">Camelia</span>
+    <span class="nav-logo">
+      <img src="brand/monograma.png" alt="Camelia" />
+    </span>
     <button
       class="nav-toggle"
       type="button"
@@ -11,19 +13,22 @@
       <span></span><span></span><span></span>
     </button>
     <div class="nav-links" [class.abierto]="menuAbierto()">
-      <a
-        routerLink="/"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-        (click)="menuAbierto.set(false)"
-        >Dashboard</a
-      >
-      <a routerLink="/productos" routerLinkActive="active" (click)="menuAbierto.set(false)">Productos</a>
-      <a routerLink="/compras" routerLinkActive="active" (click)="menuAbierto.set(false)">Compras</a>
+      @if (u.rol === 'admin' || u.rol === 'manager') {
+        <a
+          routerLink="/"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          (click)="menuAbierto.set(false)"
+          >Dashboard</a
+        >
+      }
+      <a routerLink="/productos" routerLinkActive="active" (click)="menuAbierto.set(false)">Catalogo</a>
+      @if (u.rol === 'admin' || u.rol === 'manager') {
+        <a routerLink="/compras" routerLinkActive="active" (click)="menuAbierto.set(false)">Compras</a>
+      }
       <a routerLink="/compradores" routerLinkActive="active" (click)="menuAbierto.set(false)">Compradores</a>
       <a routerLink="/ventas" routerLinkActive="active" (click)="menuAbierto.set(false)">Ventas</a>
       <a routerLink="/whatsapp" routerLinkActive="active" (click)="menuAbierto.set(false)">WhatsApp</a>
-      <a routerLink="/difusion" routerLinkActive="active" (click)="menuAbierto.set(false)">Difusion</a>
       @if (u.rol === 'admin') {
         <a routerLink="/usuarios" routerLinkActive="active" (click)="menuAbierto.set(false)">Usuarios</a>
       }

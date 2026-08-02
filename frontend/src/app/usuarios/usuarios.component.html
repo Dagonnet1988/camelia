@@ -32,7 +32,7 @@
         <label>Rol</label>
         <select name="rol" [(ngModel)]="rol">
           <option value="user">Usuario</option>
-          <option value="admin">Administrador</option>
+          <option value="manager">Manager</option>
         </select>
       </div>
       <div class="field">
@@ -53,6 +53,7 @@
           <th>Rol</th>
           <th>Estado</th>
           <th>Creado</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -69,6 +70,9 @@
               }
             </td>
             <td>{{ u.fechaCreacion | date: 'dd/MM/yyyy' }}</td>
+            <td>
+              <button class="btn btn-secondary" type="button" (click)="resetearPassword(u)">Resetear clave</button>
+            </td>
           </tr>
         }
       </tbody>

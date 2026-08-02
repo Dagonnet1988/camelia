@@ -60,4 +60,19 @@ export class UsuariosComponent implements OnInit {
         },
       });
   }
+
+  resetearPassword(u: Usuario): void {
+    if (!confirm(`¿Resetear la clave de ${u.usuario}? Va a quedar igual al usuario (${u.usuario}) y se le pedira cambiarla al ingresar.`)) {
+      return;
+    }
+    this.error.set(null);
+    this.exito.set(null);
+    this.usuariosService.resetearPassword(u.id).subscribe({
+      next: () => {
+        this.exito.set(`Clave de ${u.usuario} reseteada — nueva clave inicial: ${u.usuario}`);
+        this.cargar();
+      },
+      error: (err) => this.error.set(extractError(err)),
+    });
+  }
 }

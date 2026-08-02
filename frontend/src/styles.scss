@@ -12,6 +12,7 @@
   --warning: #fab219;
   --serious: #ec835a;
   --critical: #d03b3b;
+  --brand-cream: #fbf7f6;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -257,6 +258,34 @@ table {
   color: var(--good);
   font-size: 13px;
   margin-bottom: 16px;
+}
+
+.logo-badge {
+  display: flex;
+  justify-content: center;
+  background: var(--brand-cream);
+  border-radius: 12px;
+  padding: 12px 16px;
+
+  img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  background: var(--brand-cream);
+  border-radius: 8px;
+  padding: 4px 6px;
+
+  img {
+    display: block;
+    height: 28px;
+    width: auto;
+  }
 }
 
 .auth-page {

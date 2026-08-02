@@ -1,65 +1,69 @@
 <header class="page-header">
-  <h1>Productos</h1>
-  <p>Catalogo de SKUs, precios y stock</p>
+  <h1>Catalogo</h1>
+  <p>
+    Productos, precios y stock. Los productos nuevos se dan de alta desde
+    <strong>Compras</strong> al registrar el primer ingreso de inventario.
+  </p>
 </header>
 
-<section class="card">
-  <h2>{{ editandoCodigo() ? 'Editar producto' : 'Nuevo producto' }}</h2>
+@if (puedeEditar && editandoCodigo()) {
+  <section class="card">
+    <h2>Editar producto</h2>
 
+    @if (error()) {
+      <div class="alert-error">{{ error() }}</div>
+    }
+    @if (exito()) {
+      <div class="alert-ok">{{ exito() }}</div>
+    }
+
+    <form (ngSubmit)="guardar()">
+      <div class="form-grid">
+        <div class="field">
+          <label>Codigo (SKU)</label>
+          <input [value]="editandoCodigo()" disabled />
+        </div>
+        <div class="field">
+          <label>Nombre</label>
+          <input name="nombre" [(ngModel)]="form.nombre" required />
+        </div>
+        <div class="field">
+          <label>Categoria</label>
+          <select name="categoria" [(ngModel)]="form.categoria">
+            @for (c of categorias; track c) {
+              <option [value]="c">{{ c }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label>Valor de venta</label>
+          <input type="number" name="valorVenta" [(ngModel)]="form.valorVenta" min="0" required />
+        </div>
+        <div class="field">
+          <label>Stock minimo</label>
+          <input type="number" name="stockMinimo" [(ngModel)]="form.stockMinimo" min="0" />
+        </div>
+        <div class="field">
+          <button class="btn" type="submit" [disabled]="guardando()">Guardar cambios</button>
+        </div>
+        <div class="field">
+          <button class="btn btn-secondary" type="button" (click)="cancelarEdicion()">Cancelar</button>
+        </div>
+      </div>
+    </form>
+  </section>
+}
+
+@if (!editandoCodigo() && (error() || exito())) {
   @if (error()) {
     <div class="alert-error">{{ error() }}</div>
   }
   @if (exito()) {
     <div class="alert-ok">{{ exito() }}</div>
   }
+}
 
-  <form (ngSubmit)="guardar()">
-    <div class="form-grid">
-      <div class="field">
-        <label>Codigo (SKU)</label>
-        <input
-          name="codigo"
-          [(ngModel)]="form.codigo"
-          [disabled]="!!editandoCodigo()"
-          placeholder="ARE-001"
-          required
-        />
-      </div>
-      <div class="field">
-        <label>Nombre</label>
-        <input name="nombre" [(ngModel)]="form.nombre" placeholder="Arete Luna" required />
-      </div>
-      <div class="field">
-        <label>Categoria</label>
-        <select name="categoria" [(ngModel)]="form.categoria">
-          @for (c of categorias; track c) {
-            <option [value]="c">{{ c }}</option>
-          }
-        </select>
-      </div>
-      <div class="field">
-        <label>Valor de venta</label>
-        <input type="number" name="valorVenta" [(ngModel)]="form.valorVenta" min="0" required />
-      </div>
-      <div class="field">
-        <label>Stock minimo</label>
-        <input type="number" name="stockMinimo" [(ngModel)]="form.stockMinimo" min="0" />
-      </div>
-      <div class="field">
-        <button class="btn" type="submit" [disabled]="guardando()">
-          {{ editandoCodigo() ? 'Guardar cambios' : 'Crear producto' }}
-        </button>
-      </div>
-      @if (editandoCodigo()) {
-        <div class="field">
-          <button class="btn btn-secondary" type="button" (click)="cancelarEdicion()">Cancelar</button>
-        </div>
-      }
-    </div>
-  </form>
-</section>
-
-<section class="card" style="margin-top: 20px">
+<section class="card" [style.margin-top.px]="puedeEditar && editandoCodigo() ? 20 : 0">
   <h2>Catalogo ({{ productos().length }})</h2>
   <div class="table-scroll">
     <table>
@@ -72,7 +76,9 @@
           <th class="num">Costo prom.</th>
           <th class="num">Stock</th>
           <th class="num">Stock min.</th>
-          <th></th>
+          @if (puedeEditar) {
+            <th></th>
+          }
         </tr>
       </thead>
       <tbody>
@@ -90,10 +96,12 @@
               }
             </td>
             <td class="num">{{ p.stockMinimo }}</td>
-            <td>
-              <button class="btn btn-secondary" type="button" (click)="editar(p)">Editar</button>
-              <button class="btn btn-danger" type="button" (click)="eliminar(p)">Eliminar</button>
-            </td>
+            @if (puedeEditar) {
+              <td>
+                <button class="btn btn-secondary" type="button" (click)="editar(p)">Editar</button>
+                <button class="btn btn-danger" type="button" (click)="eliminar(p)">Eliminar</button>
+              </td>
+            }
           </tr>
         }
       </tbody>

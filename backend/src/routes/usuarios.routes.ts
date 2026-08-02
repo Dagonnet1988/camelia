@@ -8,7 +8,7 @@ const crearUsuarioSchema = z.object({
   usuario: z.string().min(3),
   nombre: z.string().min(1),
   apellido: z.string().min(1),
-  rol: z.enum(["admin", "user"]).optional(),
+  rol: z.enum(["admin", "manager", "user"]).optional(),
 });
 
 export const usuariosRouter = Router();
@@ -26,5 +26,13 @@ usuariosRouter.post(
   asyncHandler(async (req, res) => {
     const usuario = await usuariosService.crearUsuario(req.body);
     res.status(201).json(usuario);
+  }),
+);
+
+usuariosRouter.post(
+  "/:id/resetear-password",
+  asyncHandler(async (req, res) => {
+    const usuario = await usuariosService.resetearPassword(Number(req.params["id"]));
+    res.json(usuario);
   }),
 );

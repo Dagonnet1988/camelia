@@ -3,6 +3,7 @@ import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
+import { DifusionComponent } from '../difusion/difusion.component';
 import type { EstadoWhatsapp, HistorialMensajeWhatsapp } from '../models/whatsapp.models';
 import { WhatsappService } from '../services/whatsapp.service';
 import { extractError } from '../shared/http-error';
@@ -11,7 +12,7 @@ const POLL_MS = 3000;
 
 @Component({
   selector: 'app-whatsapp',
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, DifusionComponent],
   templateUrl: './whatsapp.component.html',
   styleUrl: './whatsapp.component.scss',
 })

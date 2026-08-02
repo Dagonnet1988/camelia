@@ -13,17 +13,53 @@
     <div class="alert-ok">{{ exito() }}</div>
   }
 
+  <label class="producto-nuevo-toggle" style="margin-bottom: 14px">
+    <input
+      type="checkbox"
+      [checked]="esProductoNuevo()"
+      (change)="toggleProductoNuevo(!esProductoNuevo())"
+    />
+    Es un producto nuevo (todavia no existe en el catalogo)
+  </label>
+
   <form (ngSubmit)="registrar()">
     <div class="form-grid">
-      <div class="field">
-        <label>Producto</label>
-        <select name="codigoProducto" [(ngModel)]="form.codigoProducto" required>
-          <option value="" disabled>Selecciona…</option>
-          @for (p of productos(); track p.codigo) {
-            <option [value]="p.codigo">{{ p.nombre }} ({{ p.codigo }})</option>
-          }
-        </select>
-      </div>
+      @if (esProductoNuevo()) {
+        <div class="field">
+          <label>Codigo (SKU)</label>
+          <input name="codigoNuevo" [(ngModel)]="productoNuevo.codigo" placeholder="ARE-002" required />
+        </div>
+        <div class="field">
+          <label>Nombre</label>
+          <input name="nombreNuevo" [(ngModel)]="productoNuevo.nombre" placeholder="Arete Sol" required />
+        </div>
+        <div class="field">
+          <label>Categoria</label>
+          <select name="categoriaNuevo" [(ngModel)]="productoNuevo.categoria">
+            @for (c of categorias; track c) {
+              <option [value]="c">{{ c }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label>Valor de venta</label>
+          <input type="number" name="valorVentaNuevo" [(ngModel)]="productoNuevo.valorVenta" min="0" required />
+        </div>
+        <div class="field">
+          <label>Stock minimo</label>
+          <input type="number" name="stockMinimoNuevo" [(ngModel)]="productoNuevo.stockMinimo" min="0" />
+        </div>
+      } @else {
+        <div class="field">
+          <label>Producto</label>
+          <select name="codigoProducto" [(ngModel)]="form.codigoProducto" required>
+            <option value="" disabled>Selecciona…</option>
+            @for (p of productos(); track p.codigo) {
+              <option [value]="p.codigo">{{ p.nombre }} ({{ p.codigo }})</option>
+            }
+          </select>
+        </div>
+      }
       <div class="field">
         <label>Cantidad</label>
         <input type="number" name="cantidad" [(ngModel)]="form.cantidad" min="1" required />

@@ -1,22 +1,22 @@
 import { Router } from "express";
 import { z } from "zod";
+import { requireManagerOrAdmin } from "../lib/auth-middleware";
+import { CATEGORIAS_PRODUCTO } from "../lib/constantes";
 import { asyncHandler } from "../lib/http";
 import { validateBody } from "../lib/validate";
 import * as productosService from "../services/productos.service";
 
-const CATEGORIAS = ["arete", "anillo", "manilla", "collar", "otro"] as const;
-
 const crearProductoSchema = z.object({
   codigo: z.string().min(1),
   nombre: z.string().min(1),
-  categoria: z.enum(CATEGORIAS),
+  categoria: z.enum(CATEGORIAS_PRODUCTO),
   valorVenta: z.number().positive(),
   stockMinimo: z.number().int().nonnegative().default(0),
 });
 
 const actualizarProductoSchema = z.object({
   nombre: z.string().min(1).optional(),
-  categoria: z.enum(CATEGORIAS).optional(),
+  categoria: z.enum(CATEGORIAS_PRODUCTO).optional(),
   valorVenta: z.number().positive().optional(),
   stockMinimo: z.number().int().nonnegative().optional(),
 });
@@ -46,6 +46,7 @@ productosRouter.get(
 
 productosRouter.post(
   "/",
+  requireManagerOrAdmin,
   validateBody(crearProductoSchema),
   asyncHandler(async (req, res) => {
     const producto = await productosService.crearProducto(req.body);
@@ -55,6 +56,7 @@ productosRouter.post(
 
 productosRouter.put(
   "/:codigo",
+  requireManagerOrAdmin,
   validateBody(actualizarProductoSchema),
   asyncHandler(async (req, res) => {
     const producto = await productosService.actualizarProducto(req.params["codigo"] as string, req.body);
@@ -64,6 +66,7 @@ productosRouter.put(
 
 productosRouter.delete(
   "/:codigo",
+  requireManagerOrAdmin,
   asyncHandler(async (req, res) => {
     await productosService.eliminarProducto(req.params["codigo"] as string);
     res.status(204).send();

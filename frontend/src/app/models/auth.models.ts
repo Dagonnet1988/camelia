@@ -1,4 +1,4 @@
-export type RolUsuario = 'admin' | 'user';
+export type RolUsuario = 'admin' | 'manager' | 'user';
 
 export interface UsuarioSesion {
   id: number;

@@ -15,4 +15,8 @@ export class UsuariosService {
   crear(input: CrearUsuarioInput) {
     return this.http.post<Usuario>(BASE, input);
   }
+
+  resetearPassword(id: number) {
+    return this.http.post<Usuario>(`${BASE}/${id}/resetear-password`, {});
+  }
 }

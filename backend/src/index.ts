@@ -13,7 +13,7 @@ process.on("uncaughtException", (err) => {
   console.error("[proceso] Excepcion no capturada:", err);
 });
 
-import { requireAdmin, requireAuth } from "./lib/auth-middleware";
+import { requireAdmin, requireAuth, requireManagerOrAdmin } from "./lib/auth-middleware";
 import { prisma } from "./lib/prisma";
 import { authRouter } from "./routes/auth.routes";
 import { comprasRouter } from "./routes/compras.routes";
@@ -42,12 +42,13 @@ app.get("/health", async (_req, res) => {
 // /api/auth/login y /logout son publicas; /me y /cambiar-password se protegen adentro del router.
 app.use("/api/auth", authRouter);
 
+// productos: GET (catalogo) abierto a los 3 roles; las mutaciones se restringen adentro del router.
 app.use("/api/productos", requireAuth, productosRouter);
-app.use("/api/compras", requireAuth, comprasRouter);
+app.use("/api/compras", requireAuth, requireManagerOrAdmin, comprasRouter);
 app.use("/api/compradores", requireAuth, compradoresRouter);
 app.use("/api/ventas", requireAuth, ventasRouter);
 app.use("/api/cuotas", requireAuth, cuotasRouter);
-app.use("/api/metrics", requireAuth, metricsRouter);
+app.use("/api/metrics", requireAuth, requireManagerOrAdmin, metricsRouter);
 app.use("/api/whatsapp", requireAuth, whatsappRouter);
 app.use("/api/usuarios", requireAuth, requireAdmin, usuariosRouter);
 

@@ -44,11 +44,19 @@ export interface CompraInventario {
   fechaCompra: string;
 }
 
+export interface ProductoNuevoInput {
+  nombre: string;
+  categoria: Categoria;
+  valorVenta: number;
+  stockMinimo?: number;
+}
+
 export interface RegistrarCompraInput {
   codigoProducto: string;
   cantidad: number;
   valorCompraUnitario: number;
   proveedor?: string;
+  productoNuevo?: ProductoNuevoInput;
 }
 
 export interface Cuota {

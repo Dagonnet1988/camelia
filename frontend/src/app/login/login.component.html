@@ -1,7 +1,8 @@
 <div class="auth-page">
   <form class="auth-card" (ngSubmit)="ingresar()">
-    <h1>Camelia</h1>
-    <p class="subtitulo">Inventario y métricas — bisutería</p>
+    <div class="logo-badge">
+      <img src="brand/logo-maestro.png" alt="Camelia — Detalles que te hacen especial" width="247" height="158" />
+    </div>
 
     @if (error()) {
       <div class="alert-error">{{ error() }}</div>

@@ -4,7 +4,8 @@ import { Router } from '@angular/router';
 import { map } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
-export const adminGuard: CanActivateFn = () => {
+/** Dashboard y Compras: solo admin/manager. Un 'user' restringido cae a /productos. */
+export const managerGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
@@ -12,7 +13,7 @@ export const adminGuard: CanActivateFn = () => {
     map((usuario) => {
       if (!usuario) return router.parseUrl('/login');
       if (usuario.debeCambiarPassword) return router.parseUrl('/cambiar-password');
-      if (usuario.rol !== 'admin') return router.parseUrl('/');
+      if (usuario.rol === 'user') return router.parseUrl('/productos');
       return true;
     }),
   );

@@ -128,11 +128,16 @@ Al insertar una compra:
 
 ## Backlog / Módulos futuros (no implementados aún)
 
-**Estado (actualizado 2026-08-01):** el módulo de WhatsApp (conexión, recordatorios, límites,
-historial, envíos masivos), el login básico, y el diseño responsive de toda la app están
+**Estado (actualizado 2026-08-02):** el módulo de WhatsApp (conexión, recordatorios, límites,
+historial, envíos masivos, ahora con Difusión integrada en la misma página), el login con 3
+roles, el Catálogo (ex-Productos, alimentado desde Compras), el reset de contraseña, la
+identidad de marca (favicon + logo en login/nav), y el diseño responsive de toda la app están
 completos y probados. Queda por hacer:
 
 1. Despliegue (systemd/pm2 + Nginx en el Contabo).
+2. Catálogo público para compradores (con fotos) — decidido explícitamente diferir hasta
+   definir almacenamiento de fotos y qué campos son públicos vs. internos (ver sección
+   "Catálogo público — pendiente" abajo).
 
 ### Diseño responsive — COMPLETO (2026-08-01)
 
@@ -170,8 +175,14 @@ cada request, así que un cambio de rol o password aplica de inmediato) y `requi
   `requireAuth + requireAdmin` — por eso "el admin puede ver el módulo de crear usuario y el
   user no" se cumple también a nivel de API, no solo ocultando el link en el front.
 - Usuario nuevo: contraseña inicial = mismo `usuario`, `debe_cambiar_password = true`. Al
-  cambiarla se pone en `false`. Roles: `admin` y `user` — única diferencia funcional es el
-  acceso al módulo de usuarios.
+  cambiarla se pone en `false`.
+- **Roles (actualizado 2026-08-02): `admin`, `manager`, `user`.** El `user` original (acceso
+  completo salvo módulo de usuarios) se renombró a `manager`; se creó un `user` nuevo, más
+  restringido. Ver sección "Roles y permisos" abajo para el detalle de qué ve cada uno.
+- **Reset de contraseña (2026-08-02):** botón "Resetear clave" en el módulo Usuarios
+  (`POST /api/usuarios/:id/resetear-password`) — mismo patrón que la creación: la nueva
+  contraseña queda igual al `usuario` y se fuerza `debe_cambiar_password = true` de nuevo. Solo
+  admin puede usarlo (la ruta cuelga de `usuariosRouter`, montada con `requireAdmin`).
 - Seed del admin: `backend/src/scripts/seed-admin.ts` (`npm run seed:admin`, idempotente vía
   upsert). Usuario `1054988359` / Diego Sánchez / admin / password `Dagonnet1` —
   `debe_cambiar_password = false` porque se le dio una contraseña real explícita, a diferencia
@@ -183,6 +194,105 @@ cada request, así que un cambio de rol o password aplica de inmediato) y `requi
   `/cambiar-password`, `/usuarios` (solo admin, oculta el link de nav si no lo es).
 - Requiere `JWT_SECRET` en `.env` (generado con `openssl rand -hex 48`) — variable nueva a
   configurar también en el servidor de producción.
+
+### Roles y permisos — COMPLETO (2026-08-02)
+
+Pedido explícito del usuario: mantener el `admin` como está, renombrar el `user` original a
+`manager` (acceso completo salvo módulo de usuarios), y crear un `user` nuevo restringido a
+Catálogo, Compradores, Ventas y WhatsApp.
+
+- `RolUsuario` en Postgres: `admin | manager | user` (migración en dos pasos —
+  `ALTER TYPE ... ADD VALUE 'manager'` en una migración, y el `UPDATE usuarios SET rol =
+  'manager' WHERE rol = 'user'` de backfill en una migración separada, porque Postgres no deja
+  usar un valor de enum recién agregado en la misma transacción que lo crea).
+- Backend: `requireRol(...roles)` genérico en `backend/src/lib/auth-middleware.ts`, del que se
+  derivan `requireAdmin` y `requireManagerOrAdmin`. Gating real a nivel de API (no solo se oculta
+  en el nav):
+  - `/api/compras` y `/api/metrics`: `requireManagerOrAdmin` completo.
+  - `/api/productos`: `GET` abierto a cualquier autenticado (el `user` restringido necesita ver
+    el catálogo); `POST/PUT/DELETE` exigen `requireManagerOrAdmin` (el `user` no puede crear ni
+    editar productos manualmente — ver "Catálogo" abajo).
+  - `/api/compradores`, `/api/ventas`, `/api/whatsapp`: `requireAuth` sin restricción de rol —
+    los tres roles pueden operarlos.
+- Frontend: `managerGuard` (nuevo, en `frontend/src/app/guards/manager.guard.ts`) protege
+  Dashboard (`/`) y Compras — el `user` restringido que intente entrar es redirigido a
+  `/productos` (el Catálogo). El nav (`app.html`) oculta Dashboard/Compras/Usuarios según
+  `u.rol` con `@if`.
+- El toggle on/off de recordatorios automáticos de WhatsApp (`configuracion_app.
+  recordatorios_cuotas_activos`) es intencional y persiste correctamente — confirmado con el
+  usuario, no requirió cambio de código.
+
+### Difusión fusionada en WhatsApp — COMPLETO (2026-08-02)
+
+Pedido explícito del usuario: la página standalone `/difusion` (envíos masivos) no debía ser un
+módulo aparte, sino vivir dentro de la página de WhatsApp. Se eliminó la ruta `/difusion` de
+`app.routes.ts` y `DifusionComponent` ahora se embebe directamente dentro de
+`WhatsappComponent` (`<app-difusion />`, debajo del historial de mensajes). El componente de
+Difusión no cambió su lógica interna, solo se le quitó el `<header>` de página propia (ya no es
+standalone) y su `:host` dejó de fijar `max-width`/`padding` (hereda el contenedor de WhatsApp).
+
+### Catálogo (ex-Productos) alimentado desde Compras — COMPLETO (2026-08-02)
+
+Pedido explícito del usuario: "Productos" sobraba como módulo separado de creación manual — un
+producto nuevo debería darse de alta automáticamente al registrar su primera Compra, no en un
+formulario aparte. La página se renombró a "Catálogo" y quedó de solo-lectura/edición (sin
+creación manual):
+
+- `backend/src/services/compras.service.ts`: `registrarCompra` acepta un `productoNuevo?`
+  opcional (`{ nombre, categoria, valorVenta, stockMinimo? }`). Si `codigoProducto` no existe en
+  la tabla y se mandó `productoNuevo`, lo crea dentro de la misma transacción que la compra
+  (costo inicial = `valorCompraUnitario` de esa primera compra). Si no existe y no se mandó
+  `productoNuevo`, error 404 pidiendo incluirlo.
+- Frontend Compras: checkbox "Es un producto nuevo" que alterna entre el `<select>` de productos
+  existentes y un formulario inline (código/nombre/categoría/precio/stock mínimo).
+- Frontend Catálogo (`productos.component.*`): sin formulario de creación. Edición y borrado
+  (Editar/Eliminar) solo visibles/habilitados si `auth.esManagerOAdmin()` — el `user` restringido
+  ve la tabla pero no puede modificarla desde ahí (coherente con que el backend ya lo bloquea).
+- `backend/src/lib/constantes.ts`: `CATEGORIAS_PRODUCTO` extraído a constante compartida entre
+  las rutas de productos y compras (evita duplicar el enum de categorías).
+
+### Catálogo público — pendiente (diferido explícitamente por el usuario, 2026-08-02)
+
+El plan final es que el Catálogo sea una página pública (sin login) para que los compradores lo
+naveguen, con fotos de producto. **Se difirió a propósito** — antes de construirlo hay que
+decidir:
+
+1. Dónde se guardan las fotos (disco local del VPS vs. almacenamiento en la nube).
+2. Qué campos son públicos vs. internos — probablemente ocultar `costo_promedio` y quizás
+   mostrar solo "disponible/agotado" en vez del `stock_actual` exacto.
+
+**Idea de arquitectura propuesta por el usuario (2026-08-02, aún no implementada):** el Catálogo
+público como página principal (`/`) en vez del Dashboard, con un botón de login en una esquina
+que abra una ventana flotante (modal), y las demás pestañas del nav apareciendo según el rol una
+vez autenticado — mismo patrón reactivo que ya usa `app.html` con la señal `auth.usuario()`.
+Pendiente de ejecutar: mover el Dashboard fuera de `/` (a una ruta propia), construir el backend
+público del catálogo con los campos restringidos del punto anterior, y convertir los redirects
+de los guards (`authGuard`/`managerGuard`, que hoy navegan a la página `/login`) para que abran
+el modal en vez de navegar. Mantener `/login` como ruta de respaldo para acceso directo.
+
+### Identidad de marca — COMPLETO (2026-08-02)
+
+Assets de marca ya existentes en `frontend/public/brand/files/` (logo maestro, monograma,
+tarjeta de agradecimiento, sticker de empaque, foto de perfil de WhatsApp — estos tres últimos
+son piezas de marketing físico/impresión, no se usan en la app). Ninguno tiene canal alpha: los
+PNG traen un fondo crema sólido horneado (`#FBF7F6`, muestreado con Pillow ya que no había
+ImageMagick disponible — `pip3 install Pillow`).
+
+- Copias con nombre limpio para referenciar desde código: `frontend/public/brand/logo-maestro.png`
+  y `frontend/public/brand/monograma.png`.
+- Favicon: `frontend/public/brand/icons/` (favicon-16/32/48.png + apple-touch-icon.png,
+  recortados/redimensionados desde el monograma con `sips`, ya que `convert`/`magick` no estaban
+  instalados). Reemplaza el `favicon.ico` default de Angular (eliminado) en `index.html`, con
+  `<link rel="icon" type="image/png" sizes="...">` (formato moderno) + `apple-touch-icon`.
+- Clase global `.logo-badge` / `.nav-logo` en `styles.scss`, con `background: var(--brand-cream)`
+  (`#fbf7f6`, hardcodeado — no ligado a `--surface-1`) para que el fondo crema del PNG se lea
+  como una tarjeta de logo intencional también en modo oscuro, en vez de un bug de transparencia.
+  Verificado visualmente con Playwright en ambos modos.
+  - Login (`login.component.html`): logo maestro completo (ya incluye "CAMELIA" + tagline).
+  - Cambiar contraseña: monograma pequeño arriba del `<h1>` (se mantiene el `<h1>` porque es
+    específico de la página, no identidad de marca).
+  - Nav principal (`app.html`): monograma pequeño en `.nav-logo`, reemplaza el texto plano
+    `<span class="brand">Camelia</span>`.
 
 ### Despliegue
 

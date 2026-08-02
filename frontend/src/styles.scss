@@ -71,6 +71,9 @@ body {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
+  // min-width: 0 evita que una tabla ancha adentro empuje el ancho del grid item
+  // (y por lo tanto la pagina entera) en vez de scrollear solo dentro de .table-scroll.
+  min-width: 0;
 
   h2 {
     margin: 0 0 16px;

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './services/auth.service';
 
@@ -9,6 +9,8 @@ import { AuthService } from './services/auth.service';
   styleUrl: './app.scss'
 })
 export class App implements OnInit {
+  menuAbierto = signal(false);
+
   constructor(
     protected auth: AuthService,
     private router: Router,

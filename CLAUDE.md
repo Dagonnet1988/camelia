@@ -129,10 +129,32 @@ Al insertar una compra:
 ## Backlog / Módulos futuros (no implementados aún)
 
 **Estado (actualizado 2026-08-01):** el módulo de WhatsApp (conexión, recordatorios, límites,
-historial, envíos masivos) y el login básico están completos y probados. Queda por hacer:
+historial, envíos masivos), el login básico, y el diseño responsive de toda la app están
+completos y probados. Queda por hacer:
 
 1. Despliegue (systemd/pm2 + Nginx en el Contabo).
-2. Hacer responsive todas las vistas (celular/tablet/PC) — en curso.
+
+### Diseño responsive — COMPLETO (2026-08-01)
+
+Todas las vistas (incluyendo login y cambio de password) se probaron en 3 anchos — móvil
+(390px), tablet (820px), desktop (1440px) — sin overflow horizontal en ninguna página.
+
+- Nav principal: en pantallas ≤860px colapsa a un botón hamburguesa que despliega los links en
+  columna (con nombre de usuario y botón de cerrar sesión al final). Implementado con
+  `display: contents` en `.nav-links` en desktop (los hijos se comportan como parte del flex de
+  `.main-nav`) y `display: flex/none` + `.abierto` en mobile — evita duplicar el markup del nav
+  para cada breakpoint.
+- Cada página tiene un `@media (max-width: 640px)` en su `:host` que reduce el padding de 24px a
+  16px.
+- Fix real encontrado: `.card` como *grid item* (dentro de `.dashboard-grid`/`.split` del
+  Dashboard) puede no encogerse por debajo del ancho de su contenido por defecto en CSS Grid —
+  una tabla ancha adentro puede forzar el ancho de toda la página en vez de solo scrollear
+  dentro de `.table-scroll`. Se agregó `min-width: 0` a `.card` globalmente. Los grids del
+  dashboard ya usaban `minmax(0, 1fr)` en sus columnas, que es el fix complementario a nivel de
+  track.
+- Formularios (`.form-grid`, `grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))`) y
+  tablas (envueltas en `.table-scroll { overflow-x: auto }`) ya eran responsive desde que se
+  construyeron — no necesitaron cambios, solo se verificó que no rompieran.
 
 ### Login básico — COMPLETO (2026-08-01)
 

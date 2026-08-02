@@ -1,19 +1,36 @@
 @if (auth.usuario(); as u) {
   <nav class="main-nav">
     <span class="brand">Camelia</span>
-    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Dashboard</a>
-    <a routerLink="/productos" routerLinkActive="active">Productos</a>
-    <a routerLink="/compras" routerLinkActive="active">Compras</a>
-    <a routerLink="/compradores" routerLinkActive="active">Compradores</a>
-    <a routerLink="/ventas" routerLinkActive="active">Ventas</a>
-    <a routerLink="/whatsapp" routerLinkActive="active">WhatsApp</a>
-    <a routerLink="/difusion" routerLinkActive="active">Difusion</a>
-    @if (u.rol === 'admin') {
-      <a routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
-    }
-    <span class="nav-spacer"></span>
-    <span class="nav-usuario">{{ u.nombre }}</span>
-    <button class="nav-logout" type="button" (click)="cerrarSesion()">Cerrar sesion</button>
+    <button
+      class="nav-toggle"
+      type="button"
+      (click)="menuAbierto.set(!menuAbierto())"
+      [attr.aria-expanded]="menuAbierto()"
+      aria-label="Abrir menu"
+    >
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" [class.abierto]="menuAbierto()">
+      <a
+        routerLink="/"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        (click)="menuAbierto.set(false)"
+        >Dashboard</a
+      >
+      <a routerLink="/productos" routerLinkActive="active" (click)="menuAbierto.set(false)">Productos</a>
+      <a routerLink="/compras" routerLinkActive="active" (click)="menuAbierto.set(false)">Compras</a>
+      <a routerLink="/compradores" routerLinkActive="active" (click)="menuAbierto.set(false)">Compradores</a>
+      <a routerLink="/ventas" routerLinkActive="active" (click)="menuAbierto.set(false)">Ventas</a>
+      <a routerLink="/whatsapp" routerLinkActive="active" (click)="menuAbierto.set(false)">WhatsApp</a>
+      <a routerLink="/difusion" routerLinkActive="active" (click)="menuAbierto.set(false)">Difusion</a>
+      @if (u.rol === 'admin') {
+        <a routerLink="/usuarios" routerLinkActive="active" (click)="menuAbierto.set(false)">Usuarios</a>
+      }
+      <span class="nav-spacer"></span>
+      <span class="nav-usuario">{{ u.nombre }}</span>
+      <button class="nav-logout" type="button" (click)="cerrarSesion()">Cerrar sesion</button>
+    </div>
   </nav>
 }
 <router-outlet />

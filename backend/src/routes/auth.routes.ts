@@ -11,7 +11,7 @@ const loginSchema = z.object({
 });
 
 const cambiarPasswordSchema = z.object({
-  passwordActual: z.string().min(1),
+  passwordActual: z.string().min(1).optional(),
   passwordNueva: z.string().min(6),
 });
 

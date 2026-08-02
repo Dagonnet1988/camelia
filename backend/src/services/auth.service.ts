@@ -83,14 +83,20 @@ export async function login(
 
 export async function cambiarPassword(
   usuarioId: number,
-  passwordActual: string,
+  passwordActual: string | undefined,
   passwordNueva: string,
 ): Promise<UsuarioPublico> {
   const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
   if (!usuario) throw new ApiError(401, "Usuario no existe");
 
-  const passwordValida = await bcrypt.compare(passwordActual, usuario.passwordHash);
-  if (!passwordValida) throw new ApiError(400, "La contraseña actual no es correcta");
+  // En el primer login (debeCambiarPassword) no se exige la contraseña actual, ya que el usuario
+  // apenas la recibio (igual a su nombre de usuario) y el objetivo es forzar el cambio, no
+  // volver a pedirle algo que acaba de escribir para entrar.
+  if (!usuario.debeCambiarPassword) {
+    if (!passwordActual) throw new ApiError(400, "La contraseña actual es obligatoria");
+    const passwordValida = await bcrypt.compare(passwordActual, usuario.passwordHash);
+    if (!passwordValida) throw new ApiError(400, "La contraseña actual no es correcta");
+  }
 
   if (passwordNueva.length < 6) {
     throw new ApiError(400, "La nueva contraseña debe tener al menos 6 caracteres");

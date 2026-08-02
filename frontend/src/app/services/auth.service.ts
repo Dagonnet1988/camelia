@@ -32,7 +32,7 @@ export class AuthService {
     return this.http.post(`${BASE}/logout`, {}).pipe(tap(() => this.usuario.set(null)));
   }
 
-  cambiarPassword(passwordActual: string, passwordNueva: string) {
+  cambiarPassword(passwordActual: string | undefined, passwordNueva: string) {
     return this.http
       .post<UsuarioSesion>(`${BASE}/cambiar-password`, { passwordActual, passwordNueva })
       .pipe(tap((u) => this.usuario.set(u)));

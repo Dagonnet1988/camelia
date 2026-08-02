@@ -196,6 +196,12 @@ cada request, así que un cambio de rol o password aplica de inmediato) y `requi
   user no" se cumple también a nivel de API, no solo ocultando el link en el front.
 - Usuario nuevo: contraseña inicial = mismo `usuario`, `debe_cambiar_password = true`. Al
   cambiarla se pone en `false`.
+- **Ajuste 2026-08-02:** en el cambio de contraseña forzado del primer login (`debe_cambiar_password
+  = true`), ya no se pide la contraseña actual — el usuario acaba de escribirla para entrar (es
+  igual a su `usuario`), pedirla de nuevo era fricción sin valor de seguridad real. `POST
+  /api/auth/cambiar-password` acepta `passwordActual` opcional; `auth.service.ts` solo la exige
+  y valida si `usuario.debeCambiarPassword` es `false` (cambio voluntario posterior, donde sí se
+  verifica). El frontend (`cambiar-password.component`) oculta ese campo cuando `esPrimerCambio`.
 - **Roles (actualizado 2026-08-02): `admin`, `manager`, `user`.** El `user` original (acceso
   completo salvo módulo de usuarios) se renombró a `manager`; se creó un `user` nuevo, más
   restringido. Ver sección "Roles y permisos" abajo para el detalle de qué ve cada uno.

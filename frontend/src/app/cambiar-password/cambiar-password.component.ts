@@ -28,7 +28,7 @@ export class CambiarPasswordComponent {
   guardar(): void {
     this.error.set(null);
 
-    if (!this.passwordActual || !this.passwordNueva) {
+    if ((!this.esPrimerCambio && !this.passwordActual) || !this.passwordNueva) {
       this.error.set('Todos los campos son obligatorios');
       return;
     }
@@ -42,7 +42,7 @@ export class CambiarPasswordComponent {
     }
 
     this.enviando.set(true);
-    this.auth.cambiarPassword(this.passwordActual, this.passwordNueva).subscribe({
+    this.auth.cambiarPassword(this.esPrimerCambio ? undefined : this.passwordActual, this.passwordNueva).subscribe({
       next: (u) => {
         this.enviando.set(false);
         this.router.navigateByUrl(u.rol === 'admin' || u.rol === 'manager' ? '/dashboard' : '/productos');

@@ -19,6 +19,7 @@
       <a routerLink="/productos" routerLinkActive="active" (click)="menuAbierto.set(false)">Catalogo</a>
       @if (u.rol === 'admin' || u.rol === 'manager') {
         <a routerLink="/compras" routerLinkActive="active" (click)="menuAbierto.set(false)">Compras</a>
+        <a routerLink="/comisiones" routerLinkActive="active" (click)="menuAbierto.set(false)">Comisiones</a>
       }
       <a routerLink="/compradores" routerLinkActive="active" (click)="menuAbierto.set(false)">Compradores</a>
       <a routerLink="/ventas" routerLinkActive="active" (click)="menuAbierto.set(false)">Ventas</a>
@@ -26,6 +27,7 @@
       @if (u.rol === 'admin') {
         <a routerLink="/usuarios" routerLinkActive="active" (click)="menuAbierto.set(false)">Usuarios</a>
       }
+      <a routerLink="/" target="_blank" rel="noopener" (click)="menuAbierto.set(false)">Vista pública ↗</a>
       <span class="nav-spacer"></span>
       <span class="nav-usuario">{{ u.nombre }}</span>
       <button class="nav-logout" type="button" (click)="cerrarSesion()">Cerrar sesion</button>

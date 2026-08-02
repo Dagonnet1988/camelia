@@ -15,12 +15,14 @@ export interface RegistrarVentaInput {
   recargoCuotas?: number;
   canal: Canal;
   fechaVenta?: Date;
+  vendedorId?: number;
 }
 
 export interface FiltrosVentas {
   codigoProducto?: string;
   compradorCelular?: string;
   canal?: Canal;
+  vendedorId?: number;
   desde?: Date;
   hasta?: Date;
 }
@@ -31,18 +33,22 @@ export function listarVentas(filtros: FiltrosVentas) {
       codigoProducto: filtros.codigoProducto,
       compradorCelular: filtros.compradorCelular,
       canal: filtros.canal,
+      vendedorId: filtros.vendedorId,
       fechaVenta: {
         gte: filtros.desde,
         lte: filtros.hasta,
       },
     },
-    include: { cuotas: true },
+    include: { cuotas: true, vendedor: { select: { id: true, nombre: true, apellido: true } } },
     orderBy: { fechaVenta: "desc" },
   });
 }
 
 export async function obtenerVenta(id: number) {
-  const venta = await prisma.venta.findUnique({ where: { id }, include: { cuotas: true } });
+  const venta = await prisma.venta.findUnique({
+    where: { id },
+    include: { cuotas: true, vendedor: { select: { id: true, nombre: true, apellido: true } } },
+  });
   if (!venta) throw new ApiError(404, `Venta ${id} no existe`);
   return venta;
 }
@@ -66,6 +72,10 @@ export async function registrarVenta(input: RegistrarVentaInput) {
       if (!comprador) throw new ApiError(404, `Comprador ${input.compradorCelular} no existe`);
     }
 
+    const vendedor = input.vendedorId
+      ? await tx.usuario.findUnique({ where: { id: input.vendedorId } })
+      : null;
+
     const cantidad = new Prisma.Decimal(input.cantidad);
     const recargoCuotas = new Prisma.Decimal(input.recargoCuotas ?? 0);
     const valorContado =
@@ -74,6 +84,8 @@ export async function registrarVenta(input: RegistrarVentaInput) {
     const costoPromedioAlMomento = producto.costoPromedio;
     const ganancia = valorTotalVenta.sub(costoPromedioAlMomento.mul(cantidad));
     const fechaVenta = input.fechaVenta ?? new Date();
+    const comisionPorcentaje = vendedor?.porcentajeComision ?? new Prisma.Decimal(0);
+    const comision = valorTotalVenta.mul(comisionPorcentaje).div(100);
 
     await tx.producto.update({
       where: { codigo: input.codigoProducto },
@@ -94,6 +106,9 @@ export async function registrarVenta(input: RegistrarVentaInput) {
         ganancia,
         canal: input.canal,
         fechaVenta,
+        vendedorId: input.vendedorId,
+        comisionPorcentaje,
+        comision,
       },
     });
 
@@ -103,7 +118,10 @@ export async function registrarVenta(input: RegistrarVentaInput) {
       });
     }
 
-    return tx.venta.findUniqueOrThrow({ where: { id: venta.id }, include: { cuotas: true } });
+    return tx.venta.findUniqueOrThrow({
+      where: { id: venta.id },
+      include: { cuotas: true, vendedor: { select: { id: true, nombre: true, apellido: true } } },
+    });
   });
 }
 

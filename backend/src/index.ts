@@ -17,6 +17,7 @@ process.on("uncaughtException", (err) => {
 import { requireAdmin, requireAuth, requireManagerOrAdmin } from "./lib/auth-middleware";
 import { prisma } from "./lib/prisma";
 import { authRouter } from "./routes/auth.routes";
+import { comisionesRouter } from "./routes/comisiones.routes";
 import { comprasRouter } from "./routes/compras.routes";
 import { compradoresRouter } from "./routes/compradores.routes";
 import { cuotasRouter } from "./routes/cuotas.routes";
@@ -51,6 +52,7 @@ app.use("/api/auth", authRouter);
 // productos: GET (catalogo) abierto a los 3 roles; las mutaciones se restringen adentro del router.
 app.use("/api/productos", requireAuth, productosRouter);
 app.use("/api/compras", requireAuth, requireManagerOrAdmin, comprasRouter);
+app.use("/api/comisiones", requireAuth, requireManagerOrAdmin, comisionesRouter);
 app.use("/api/compradores", requireAuth, compradoresRouter);
 app.use("/api/ventas", requireAuth, ventasRouter);
 app.use("/api/cuotas", requireAuth, cuotasRouter);

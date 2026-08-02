@@ -22,6 +22,9 @@ export class UsuariosComponent implements OnInit {
   apellido = '';
   rol: RolUsuario = 'user';
 
+  comisionEdit: Record<number, number> = {};
+  guardandoComisionId = signal<number | null>(null);
+
   constructor(private usuariosService: UsuariosService) {}
 
   ngOnInit(): void {
@@ -29,7 +32,32 @@ export class UsuariosComponent implements OnInit {
   }
 
   cargar(): void {
-    this.usuariosService.listar().subscribe((data) => this.usuarios.set(data));
+    this.usuariosService.listar().subscribe((data) => {
+      this.usuarios.set(data);
+      for (const u of data) {
+        this.comisionEdit[u.id] = Number(u.porcentajeComision);
+      }
+    });
+  }
+
+  guardarComision(u: Usuario): void {
+    const valor = this.comisionEdit[u.id];
+    if (valor === undefined || valor === null || valor < 0 || valor > 100) {
+      this.error.set('El porcentaje de comisión debe estar entre 0 y 100');
+      return;
+    }
+    this.guardandoComisionId.set(u.id);
+    this.usuariosService.actualizarComision(u.id, valor).subscribe({
+      next: () => {
+        this.exito.set(`Comisión de ${u.usuario} actualizada a ${valor}%`);
+        this.guardandoComisionId.set(null);
+        this.cargar();
+      },
+      error: (err) => {
+        this.error.set(extractError(err));
+        this.guardandoComisionId.set(null);
+      },
+    });
   }
 
   crear(): void {

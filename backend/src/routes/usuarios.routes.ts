@@ -11,6 +11,10 @@ const crearUsuarioSchema = z.object({
   rol: z.enum(["admin", "manager", "user"]).optional(),
 });
 
+const actualizarComisionSchema = z.object({
+  porcentajeComision: z.number().min(0).max(100),
+});
+
 export const usuariosRouter = Router();
 
 usuariosRouter.get(
@@ -26,6 +30,15 @@ usuariosRouter.post(
   asyncHandler(async (req, res) => {
     const usuario = await usuariosService.crearUsuario(req.body);
     res.status(201).json(usuario);
+  }),
+);
+
+usuariosRouter.put(
+  "/:id/comision",
+  validateBody(actualizarComisionSchema),
+  asyncHandler(async (req, res) => {
+    const usuario = await usuariosService.actualizarComision(Number(req.params["id"]), req.body.porcentajeComision);
+    res.json(usuario);
   }),
 );
 

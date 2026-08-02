@@ -1,0 +1,121 @@
+<header class="page-header">
+  <h1>Comisiones</h1>
+  <p>Comisiones pendientes por vendedor, liquidación de pagos e historial</p>
+</header>
+
+@if (error()) {
+  <div class="alert-error">{{ error() }}</div>
+}
+@if (exito()) {
+  <div class="alert-ok">{{ exito() }}</div>
+}
+
+<section class="card">
+  <h2>Comisiones pendientes</h2>
+  @if (resumen().length === 0) {
+    <p class="callout">No hay comisiones pendientes por liquidar.</p>
+  } @else {
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Vendedor</th>
+            <th class="num">Ventas pendientes</th>
+            <th class="num">Comisión pendiente</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (f of resumen(); track f.vendedorId) {
+            <tr>
+              <td>{{ f.vendedorNombre }}</td>
+              <td class="num">{{ f.cantidadVentas }}</td>
+              <td class="num">{{ f.totalComision }}</td>
+              <td>
+                <button class="btn btn-secondary" type="button" (click)="verDetalle(f.vendedorId)">
+                  {{ detalleVendedorId() === f.vendedorId ? 'Ocultar' : 'Ver detalle' }}
+                </button>
+                <button
+                  class="btn"
+                  type="button"
+                  [disabled]="liquidandoId() === f.vendedorId"
+                  (click)="liquidar(f)"
+                >
+                  Liquidar
+                </button>
+              </td>
+            </tr>
+            @if (detalleVendedorId() === f.vendedorId) {
+              <tr>
+                <td colspan="4">
+                  <div class="table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th class="num">Venta #</th>
+                          <th>Producto</th>
+                          <th>Fecha</th>
+                          <th class="num">Valor venta</th>
+                          <th class="num">%</th>
+                          <th class="num">Comisión</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (v of ventasPendientesDetalle(); track v.id) {
+                          <tr>
+                            <td class="num">{{ v.id }}</td>
+                            <td>{{ v.producto.nombre }}</td>
+                            <td>{{ v.fechaVenta | date: 'dd/MM/yyyy':'UTC' }}</td>
+                            <td class="num">{{ v.valorTotalVenta }}</td>
+                            <td class="num">{{ v.comisionPorcentaje }}</td>
+                            <td class="num">{{ v.comision }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<section class="card" style="margin-top: 20px">
+  <h2>Historial de liquidaciones</h2>
+  @if (liquidaciones().length === 0) {
+    <p class="callout">Todavía no se ha liquidado ninguna comisión.</p>
+  } @else {
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Vendedor</th>
+            <th class="num">Ventas</th>
+            <th class="num">Total</th>
+            <th>Generada por</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (l of liquidaciones(); track l.id) {
+            <tr>
+              <td>{{ l.fechaLiquidacion | date: 'dd/MM/yyyy' }}</td>
+              <td>{{ l.vendedor.nombre }} {{ l.vendedor.apellido }}</td>
+              <td class="num">{{ l.cantidadVentas }}</td>
+              <td class="num">{{ l.totalComision }}</td>
+              <td>{{ l.generadaPor.nombre }} {{ l.generadaPor.apellido }}</td>
+              <td>
+                <button class="btn btn-secondary" type="button" (click)="descargarPdf(l)">Descargar PDF</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

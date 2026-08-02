@@ -93,6 +93,19 @@
 
 <section class="card" style="margin-top: 20px">
   <h2>Ventas recientes</h2>
+
+  @if (auth.esManagerOAdmin()) {
+    <div class="field" style="max-width: 260px; margin-bottom: 14px">
+      <label>Filtrar por vendedor</label>
+      <select [(ngModel)]="filtroVendedorId" (ngModelChange)="onFiltroVendedorChange()">
+        <option [ngValue]="null">Todos</option>
+        @for (v of vendedores(); track v.id) {
+          <option [ngValue]="v.id">{{ v.nombre }} {{ v.apellido }}</option>
+        }
+      </select>
+    </div>
+  }
+
   <div class="table-scroll">
     <table>
       <thead>
@@ -106,6 +119,8 @@
           <th class="num">Ganancia</th>
           <th>Canal</th>
           <th>Fecha</th>
+          <th>Vendedor</th>
+          <th class="num">Comisión</th>
         </tr>
       </thead>
       <tbody>
@@ -120,6 +135,15 @@
             <td class="num">{{ v.ganancia }}</td>
             <td>{{ v.canal }}</td>
             <td>{{ v.fechaVenta | date: 'dd/MM/yyyy':'UTC' }}</td>
+            <td>{{ v.vendedor ? v.vendedor.nombre + ' ' + v.vendedor.apellido : '—' }}</td>
+            <td class="num">
+              {{ v.comision }}
+              @if (v.vendedorId) {
+                <span class="badge" [class]="v.comisionEstado === 'liquidada' ? 'badge-pagada' : 'badge-pendiente'">
+                  {{ v.comisionEstado }}
+                </span>
+              }
+            </td>
           </tr>
         }
       </tbody>

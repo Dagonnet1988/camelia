@@ -58,6 +58,24 @@ Al insertar una compra:
 - ganancia (decimal, = valor_total_venta - (costo_promedio_al_momento × cantidad))
 - canal (enum: 'whatsapp', 'presencial')
 - fecha_venta
+- vendedor_id (FK -> usuarios.id, nullable — quien registró la venta; lo asigna el backend a
+  partir de la sesión autenticada, nunca lo manda el cliente. Agregado 2026-08-02.)
+- comision_porcentaje (decimal, copiado de usuarios.porcentaje_comision al momento de la venta —
+  mismo patrón que costo_promedio_al_momento, para que liquidaciones pasadas no se distorsionen
+  si el % de un vendedor cambia después)
+- comision (decimal, = valor_total_venta × comision_porcentaje / 100)
+- comision_estado (enum: 'pendiente', 'liquidada')
+- liquidacion_id (FK -> liquidaciones_comision.id, nullable — se llena cuando se liquida)
+
+### liquidaciones_comision (agregado 2026-08-02)
+- id (PK)
+- vendedor_id (FK -> usuarios.id)
+- generada_por_id (FK -> usuarios.id — el manager/admin que ejecutó la liquidación)
+- fecha_liquidacion
+- total_comision (decimal, suma de las comisiones de las ventas incluidas)
+- cantidad_ventas (int)
+- Relación 1-a-muchos con ventas (cada venta liquidada apunta a esta liquidación via
+  liquidacion_id) — permite regenerar el PDF de la liquidación en cualquier momento.
 
 ### cuotas (solo aplica si ventas.medio_pago = 'cuotas')
 - id (PK)
@@ -82,6 +100,8 @@ Al insertar una compra:
 - debe_cambiar_password (boolean, default true) — se pone en `false` al cambiar la contraseña
   exitosamente. Al crear un usuario nuevo desde el módulo de admin, la contraseña inicial es
   igual al `usuario` y este flag queda en `true`, forzando el cambio en el primer login.
+- porcentaje_comision (decimal, default 0 — agregado 2026-08-02. Ajustable solo por admin desde
+  el módulo Usuarios; se copia a cada venta que registre ese usuario, ver `ventas` abajo)
 - fecha_creacion
 
 ## Métricas / dashboard que debe entregar la app
@@ -131,9 +151,11 @@ Al insertar una compra:
 **Estado (actualizado 2026-08-02):** el módulo de WhatsApp (conexión, recordatorios, límites,
 historial, envíos masivos, ahora con Difusión integrada en la misma página), el login con 3
 roles, el Catálogo interno (ex-Productos, alimentado desde Compras), el reset de contraseña, la
-identidad de marca (favicon + logo en login/nav), el diseño responsive de toda la app, y el
-**catálogo público tipo marketplace** (página principal `/`, sin login, con fotos deslizables)
-están completos y probados. Queda por hacer:
+identidad de marca (favicon + logo en login/nav), el diseño responsive de toda la app, el
+**catálogo público tipo marketplace** (página principal `/`, sin login, con fotos deslizables y
+zoom al pasar el cursor), y el **módulo de comisiones de vendedores** (registro de quién hizo
+cada venta, % de comisión ajustable por admin, liquidación de pagos y factura en PDF) están
+completos y probados. Queda por hacer:
 
 1. Despliegue (systemd/pm2 + Nginx en el Contabo).
 
@@ -308,6 +330,71 @@ login, en vez de una página `/login` separada como flujo primario.
   Compras → subir foto desde el Catálogo interno → cerrar sesión → el producto aparece en `/`
   con foto/categoría/precio → filtro por categoría → bajar el stock a 0 vía SQL confirma que el
   producto desaparece del catálogo público (sin badge de "agotado").
+- **Ajuste 2026-08-02 (segunda vuelta):** pedido explícito del usuario — zoom al pasar el cursor
+  sobre la foto (`transform: scale(1.12)` en `.foto-wrapper:hover .foto-slide img`, con
+  `overflow: hidden` en el slide para recortarlo) y flechas + puntos de navegación cuando el
+  producto tiene más de una foto (antes no había ninguna señal visual de que un producto tuviera
+  varias fotos). Las flechas/puntos solo se renderizan `@if (p.fotos.length > 1)`. El punto activo
+  se calcula en `onScrollFotos()` a partir de `scrollLeft / clientWidth` del contenedor nativo
+  (sin librería de carrusel), y las flechas usan una variable de referencia de plantilla
+  (`#carrusel`) para llamar `scrollTo()` directamente sobre el div nativo de cada tarjeta.
+  También se agregó el link "Vista pública ↗" en el nav autenticado (`target="_blank"`) porque
+  el admin no tenía forma de ver el catálogo como lo ve un comprador — el link "Catálogo" del nav
+  siempre apuntaba al Catálogo interno (`/productos`), no al público.
+
+### Comisiones de vendedores — COMPLETO (2026-08-02)
+
+Pedido explícito del usuario: registrar quién hizo cada venta (para `user` y `manager`), que el
+admin pueda ver/ajustar el % de comisión de cada usuario desde el módulo Usuarios, que el manager
+pueda filtrar ventas por vendedor y liquidar comisiones (marcar cuáles ya se pagaron), y generar
+un PDF tipo factura de liquidación. **Decisión de negocio confirmada con el usuario:** la
+comisión se calcula sobre el valor total de la venta (`valor_total_venta`), no sobre la ganancia.
+
+- **Captura del vendedor:** `vendedor_id` en `ventas` se asigna **en el backend** a partir de
+  `req.usuario.id` (la sesión autenticada) en `POST /api/ventas` — nunca lo manda el cliente, así
+  que no se puede falsear. Aplica a cualquiera de los 3 roles que registre una venta.
+- **Cálculo de comisión:** mismo patrón que `costo_promedio_al_momento` — al registrar la venta
+  se copian `comision_porcentaje` (del `usuarios.porcentaje_comision` del vendedor en ese
+  momento) y se calcula `comision = valor_total_venta × comision_porcentaje / 100`, guardados en
+  la fila de la venta. Así, si el admin cambia el % de un vendedor después, las comisiones ya
+  generadas no cambian retroactivamente.
+- **Backend — ajuste de %:** `PUT /api/usuarios/:id/comision` (`requireAdmin`, dentro de
+  `usuariosRouter`) — separado del endpoint de creación/edición general a propósito, mismo
+  patrón que el reset de password.
+- **Backend — módulo de comisiones:** `backend/src/services/comisiones.service.ts` +
+  `backend/src/routes/comisiones.routes.ts`, montado en `/api/comisiones` con
+  `requireManagerOrAdmin` completo (ningún endpoint de este módulo es accesible para el rol
+  `user`, ni siquiera para ver su propio resumen — el `user` solo ve su comisión por venta
+  individual en la tabla de Ventas, no el módulo de liquidación).
+  - `GET /vendedores` — lista liviana (id, nombre, apellido, %) para el filtro de Ventas y el
+    selector de Comisiones, sin exponer el resto de campos de `usuarios` (ese detalle completo
+    sigue exclusivo de `/api/usuarios`, que sigue siendo solo-admin).
+  - `GET /resumen` — agrupa por vendedor las ventas con `comision_estado = pendiente`.
+  - `GET /vendedores/:id/pendientes` — detalle de esas ventas para un vendedor.
+  - `POST /vendedores/:id/liquidar` — toma **todas** las ventas pendientes de ese vendedor (no
+    hay selección parcial en esta primera versión), crea una fila en `liquidaciones_comision`,
+    y marca esas ventas como `liquidada` con su `liquidacion_id`. Transaccional.
+  - `GET /liquidaciones` (+ `?vendedorId=`) — historial.
+  - `GET /liquidaciones/:id/pdf` — genera el PDF on-demand con `pdfkit`
+    (`backend/src/lib/pdf-liquidacion.ts`, encabezado Camelia + tabla de ventas incluidas +
+    total), `Content-Disposition: inline` para que abra como preview en una pestaña nueva en vez
+    de forzar la descarga silenciosa.
+- **Frontend — Usuarios:** columna "Comisión %" con input numérico + botón "Guardar" por fila
+  (`PUT .../comision`), solo visible porque toda la página ya es admin-only.
+- **Frontend — Ventas:** columna "Vendedor" y "Comisión" (con badge pendiente/liquidada) en la
+  tabla, visibles para los 3 roles (mismo nivel de transparencia que el resto de la tabla, que
+  ya era visible para todos). El selector "Filtrar por vendedor" solo se renderiza
+  `@if (auth.esManagerOAdmin())`.
+- **Frontend — página Comisiones** (`frontend/src/app/comisiones/`, ruta `/comisiones` con
+  `managerGuard`, nueva pestaña en el nav junto a Compras): tabla de comisiones pendientes por
+  vendedor con detalle expandible y botón "Liquidar" (liquida todas las pendientes de ese
+  vendedor de una vez), e historial de liquidaciones con botón "Descargar PDF"
+  (`window.open` a la URL del PDF — la cookie httpOnly viaja automáticamente por ser same-origin).
+- Probado end-to-end con Playwright: usuario restringido (`user`) registra una venta → como
+  admin se ve el vendedor y la comisión "pendiente" en Ventas, con el filtro por vendedor
+  funcionando → en Comisiones aparece el resumen pendiente → "Ver detalle" muestra la venta →
+  "Liquidar" genera la liquidación y la mueve al historial → "Descargar PDF" abre un PDF con el
+  membrete Camelia, la tabla de ventas liquidadas y el total — contenido verificado directamente.
 
 ### Identidad de marca — COMPLETO (2026-08-02)
 

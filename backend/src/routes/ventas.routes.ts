@@ -26,7 +26,7 @@ export const ventasRouter = Router();
 ventasRouter.get(
   "/",
   asyncHandler(async (req, res) => {
-    const { codigo_producto, comprador_celular, canal, desde, hasta } = req.query as Record<
+    const { codigo_producto, comprador_celular, canal, vendedor_id, desde, hasta } = req.query as Record<
       string,
       string | undefined
     >;
@@ -35,6 +35,7 @@ ventasRouter.get(
         codigoProducto: codigo_producto,
         compradorCelular: comprador_celular,
         canal: canal as "whatsapp" | "presencial" | undefined,
+        vendedorId: vendedor_id ? Number(vendedor_id) : undefined,
         desde: desde ? new Date(desde) : undefined,
         hasta: hasta ? new Date(hasta) : undefined,
       }),
@@ -53,7 +54,7 @@ ventasRouter.post(
   "/",
   validateBody(registrarVentaSchema),
   asyncHandler(async (req, res) => {
-    const venta = await ventasService.registrarVenta(req.body);
+    const venta = await ventasService.registrarVenta({ ...req.body, vendedorId: req.usuario?.id });
     res.status(201).json(venta);
   }),
 );

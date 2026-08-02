@@ -89,6 +89,8 @@ export interface CuotaConVenta extends Cuota {
   venta: Venta;
 }
 
+export type EstadoComision = 'pendiente' | 'liquidada';
+
 export interface Venta {
   id: number;
   codigoProducto: string;
@@ -104,6 +106,40 @@ export interface Venta {
   canal: Canal;
   fechaVenta: string;
   cuotas: Cuota[];
+  vendedorId: number | null;
+  vendedor: { id: number; nombre: string; apellido: string } | null;
+  comisionPorcentaje: string;
+  comision: string;
+  comisionEstado: EstadoComision;
+}
+
+export interface Vendedor {
+  id: number;
+  nombre: string;
+  apellido: string;
+  porcentajeComision: string;
+}
+
+export interface ResumenComisionVendedor {
+  vendedorId: number;
+  vendedorNombre: string;
+  cantidadVentas: number;
+  totalComision: string;
+}
+
+export interface VentaPendienteComision extends Venta {
+  producto: { nombre: string };
+}
+
+export interface Liquidacion {
+  id: number;
+  vendedorId: number;
+  generadaPorId: number;
+  fechaLiquidacion: string;
+  totalComision: string;
+  cantidadVentas: number;
+  vendedor: { nombre: string; apellido: string };
+  generadaPor: { nombre: string; apellido: string };
 }
 
 export interface RegistrarVentaInput {

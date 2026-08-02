@@ -7,8 +7,11 @@ import type {
   CuotaConVenta,
   MedioPago,
   Producto,
+  Vendedor,
   Venta,
 } from '../models/domain.models';
+import { AuthService } from '../services/auth.service';
+import { ComisionesService } from '../services/comisiones.service';
 import { CompradoresService } from '../services/compradores.service';
 import { CuotasService } from '../services/cuotas.service';
 import { ProductosService } from '../services/productos.service';
@@ -53,6 +56,9 @@ export class VentasComponent implements OnInit {
   guardando = signal(false);
   pagandoCuotaId = signal<number | null>(null);
 
+  vendedores = signal<Vendedor[]>([]);
+  filtroVendedorId: number | null = null;
+
   form: VentaForm = { ...FORM_VACIO };
 
   constructor(
@@ -60,6 +66,8 @@ export class VentasComponent implements OnInit {
     private productosService: ProductosService,
     private compradoresService: CompradoresService,
     private cuotasService: CuotasService,
+    private comisionesService: ComisionesService,
+    protected auth: AuthService,
   ) {}
 
   ngOnInit(): void {
@@ -67,10 +75,17 @@ export class VentasComponent implements OnInit {
     this.compradoresService.listar().subscribe((data) => this.compradores.set(data));
     this.cargarVentas();
     this.cargarCuotasPendientes();
+    if (this.auth.esManagerOAdmin()) {
+      this.comisionesService.vendedores().subscribe((data) => this.vendedores.set(data));
+    }
   }
 
   cargarVentas(): void {
-    this.ventasService.listar().subscribe((data) => this.ventas.set(data));
+    this.ventasService.listar(this.filtroVendedorId ?? undefined).subscribe((data) => this.ventas.set(data));
+  }
+
+  onFiltroVendedorChange(): void {
+    this.cargarVentas();
   }
 
   cargarCuotasPendientes(): void {

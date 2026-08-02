@@ -23,16 +23,47 @@
   <div class="catalogo-grid">
     @for (p of filtrados(); track p.codigo) {
       <article class="producto-card">
-        <div class="foto-carrusel">
-          @if (p.fotos.length > 0) {
-            @for (f of p.fotos; track f.url) {
-              <div class="foto-slide">
-                <img [src]="f.url" [alt]="p.nombre" loading="lazy" />
+        <div class="foto-wrapper">
+          <div class="foto-carrusel" #carrusel (scroll)="onScrollFotos($event, p.codigo)">
+            @if (p.fotos.length > 0) {
+              @for (f of p.fotos; track f.url) {
+                <div class="foto-slide">
+                  <img [src]="f.url" [alt]="p.nombre" loading="lazy" />
+                </div>
+              }
+            } @else {
+              <div class="foto-slide foto-placeholder">
+                <img src="brand/monograma.png" alt="Camelia" />
               </div>
             }
-          } @else {
-            <div class="foto-slide foto-placeholder">
-              <img src="brand/monograma.png" alt="Camelia" />
+          </div>
+          @if (p.fotos.length > 1) {
+            <button
+              class="foto-flecha foto-flecha-prev"
+              type="button"
+              (click)="moverFoto(carrusel, -1, p.codigo, p.fotos.length)"
+              aria-label="Foto anterior"
+            >
+              ‹
+            </button>
+            <button
+              class="foto-flecha foto-flecha-next"
+              type="button"
+              (click)="moverFoto(carrusel, 1, p.codigo, p.fotos.length)"
+              aria-label="Foto siguiente"
+            >
+              ›
+            </button>
+            <div class="foto-puntos">
+              @for (f of p.fotos; track f.url; let i = $index) {
+                <button
+                  class="punto"
+                  type="button"
+                  [class.activo]="indiceActivo(p.codigo) === i"
+                  (click)="irAFoto(carrusel, i)"
+                  [attr.aria-label]="'Ir a foto ' + (i + 1)"
+                ></button>
+              }
             </div>
           }
         </div>

@@ -19,4 +19,8 @@ export class UsuariosService {
   resetearPassword(id: number) {
     return this.http.post<Usuario>(`${BASE}/${id}/resetear-password`, {});
   }
+
+  actualizarComision(id: number, porcentajeComision: number) {
+    return this.http.put<Usuario>(`${BASE}/${id}/comision`, { porcentajeComision });
+  }
 }

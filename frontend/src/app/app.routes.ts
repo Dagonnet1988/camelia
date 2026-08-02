@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { CatalogoPublicoComponent } from './catalogo-publico/catalogo-publico.component';
+import { ComisionesComponent } from './comisiones/comisiones.component';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { ProductosComponent } from './productos/productos.component';
 import { ComprasComponent } from './compras/compras.component';
@@ -20,6 +21,7 @@ export const routes: Routes = [
   { path: 'dashboard', component: DashboardComponent, canActivate: [managerGuard] },
   { path: 'productos', component: ProductosComponent, canActivate: [authGuard] },
   { path: 'compras', component: ComprasComponent, canActivate: [managerGuard] },
+  { path: 'comisiones', component: ComisionesComponent, canActivate: [managerGuard] },
   { path: 'compradores', component: CompradoresComponent, canActivate: [authGuard] },
   { path: 'ventas', component: VentasComponent, canActivate: [authGuard] },
   { path: 'whatsapp', component: WhatsappComponent, canActivate: [authGuard] },

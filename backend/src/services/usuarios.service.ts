@@ -10,6 +10,7 @@ const SELECT_PUBLICO = {
   apellido: true,
   rol: true,
   debeCambiarPassword: true,
+  porcentajeComision: true,
   fechaCreacion: true,
 } as const;
 
@@ -43,6 +44,17 @@ export async function crearUsuario(input: CrearUsuarioInput) {
       passwordHash,
       debeCambiarPassword: true,
     },
+    select: SELECT_PUBLICO,
+  });
+}
+
+export async function actualizarComision(id: number, porcentajeComision: number) {
+  const usuario = await prisma.usuario.findUnique({ where: { id } });
+  if (!usuario) throw new ApiError(404, `Usuario ${id} no existe`);
+
+  return prisma.usuario.update({
+    where: { id },
+    data: { porcentajeComision },
     select: SELECT_PUBLICO,
   });
 }

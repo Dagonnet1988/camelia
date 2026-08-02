@@ -56,6 +56,10 @@
   min-width: 0;
 }
 
+.foto-wrapper {
+  position: relative;
+}
+
 .foto-carrusel {
   display: flex;
   overflow-x: auto;
@@ -72,6 +76,7 @@
 .foto-slide {
   flex: 0 0 100%;
   scroll-snap-align: start;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,6 +85,74 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.25s ease;
+  }
+}
+
+.foto-wrapper:hover .foto-slide img {
+  transform: scale(1.12);
+}
+
+.foto-flecha {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  color: #0b0b0b;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    background: #fff;
+  }
+}
+
+.foto-flecha-prev {
+  left: 8px;
+}
+
+.foto-flecha-next {
+  right: 8px;
+}
+
+.foto-wrapper:hover .foto-flecha {
+  opacity: 1;
+}
+
+.foto-puntos {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.punto {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 0 1px rgba(11, 11, 11, 0.15);
+  cursor: pointer;
+  padding: 0;
+  pointer-events: auto;
+
+  &.activo {
+    background: #0b0b0b;
   }
 }
 

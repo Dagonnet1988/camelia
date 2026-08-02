@@ -8,8 +8,9 @@ const BASE = '/api/ventas';
 export class VentasService {
   constructor(private http: HttpClient) {}
 
-  listar() {
-    return this.http.get<Venta[]>(BASE);
+  listar(vendedorId?: number) {
+    const url = vendedorId ? `${BASE}?vendedor_id=${vendedorId}` : BASE;
+    return this.http.get<Venta[]>(url);
   }
 
   registrar(input: RegistrarVentaInput) {

@@ -53,6 +53,7 @@
           <th>Rol</th>
           <th>Estado</th>
           <th>Creado</th>
+          <th>Comisión %</th>
           <th></th>
         </tr>
       </thead>
@@ -70,6 +71,25 @@
               }
             </td>
             <td>{{ u.fechaCreacion | date: 'dd/MM/yyyy' }}</td>
+            <td>
+              <input
+                type="number"
+                [(ngModel)]="comisionEdit[u.id]"
+                [name]="'comision-' + u.id"
+                min="0"
+                max="100"
+                step="0.5"
+                style="width: 70px"
+              />
+              <button
+                class="btn btn-secondary"
+                type="button"
+                [disabled]="guardandoComisionId() === u.id"
+                (click)="guardarComision(u)"
+              >
+                Guardar
+              </button>
+            </td>
             <td>
               <button class="btn btn-secondary" type="button" (click)="resetearPassword(u)">Resetear clave</button>
             </td>

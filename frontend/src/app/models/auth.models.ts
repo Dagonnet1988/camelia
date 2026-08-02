@@ -16,6 +16,7 @@ export interface Usuario {
   apellido: string;
   rol: RolUsuario;
   debeCambiarPassword: boolean;
+  porcentajeComision: string;
   fechaCreacion: string;
 }
 

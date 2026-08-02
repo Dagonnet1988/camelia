@@ -1,0 +1,16 @@
+:host {
+  display: block;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+@media (max-width: 640px) {
+  :host {
+    padding: 16px;
+  }
+}
+
+.btn {
+  margin-right: 6px;
+}

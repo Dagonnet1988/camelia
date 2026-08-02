@@ -1,0 +1,70 @@
+import { DatePipe } from '@angular/common';
+import { Component, OnInit, signal } from '@angular/core';
+import type { Liquidacion, ResumenComisionVendedor, VentaPendienteComision } from '../models/domain.models';
+import { ComisionesService } from '../services/comisiones.service';
+import { extractError } from '../shared/http-error';
+
+@Component({
+  selector: 'app-comisiones',
+  imports: [DatePipe],
+  templateUrl: './comisiones.component.html',
+  styleUrl: './comisiones.component.scss',
+})
+export class ComisionesComponent implements OnInit {
+  resumen = signal<ResumenComisionVendedor[]>([]);
+  liquidaciones = signal<Liquidacion[]>([]);
+  detalleVendedorId = signal<number | null>(null);
+  ventasPendientesDetalle = signal<VentaPendienteComision[]>([]);
+  liquidandoId = signal<number | null>(null);
+  error = signal<string | null>(null);
+  exito = signal<string | null>(null);
+
+  constructor(private comisionesService: ComisionesService) {}
+
+  ngOnInit(): void {
+    this.cargar();
+  }
+
+  cargar(): void {
+    this.comisionesService.resumen().subscribe((data) => this.resumen.set(data));
+    this.comisionesService.liquidaciones().subscribe((data) => this.liquidaciones.set(data));
+  }
+
+  verDetalle(vendedorId: number): void {
+    if (this.detalleVendedorId() === vendedorId) {
+      this.detalleVendedorId.set(null);
+      return;
+    }
+    this.detalleVendedorId.set(vendedorId);
+    this.comisionesService.pendientesDeVendedor(vendedorId).subscribe((data) => this.ventasPendientesDetalle.set(data));
+  }
+
+  liquidar(fila: ResumenComisionVendedor): void {
+    if (
+      !confirm(
+        `¿Liquidar ${fila.cantidadVentas} venta(s) de ${fila.vendedorNombre} por un total de ${fila.totalComision}? Esta acción no se puede deshacer.`,
+      )
+    ) {
+      return;
+    }
+    this.error.set(null);
+    this.exito.set(null);
+    this.liquidandoId.set(fila.vendedorId);
+    this.comisionesService.liquidar(fila.vendedorId).subscribe({
+      next: (liquidacion) => {
+        this.exito.set(`Liquidación #${liquidacion.id} generada para ${fila.vendedorNombre}`);
+        this.liquidandoId.set(null);
+        this.detalleVendedorId.set(null);
+        this.cargar();
+      },
+      error: (err) => {
+        this.error.set(extractError(err));
+        this.liquidandoId.set(null);
+      },
+    });
+  }
+
+  descargarPdf(liquidacion: Liquidacion): void {
+    window.open(this.comisionesService.urlPdf(liquidacion.id), '_blank');
+  }
+}

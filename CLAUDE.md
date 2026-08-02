@@ -193,6 +193,21 @@ cada request, así que un cambio de rol o password aplica de inmediato) y `requi
 - Requiere `JWT_SECRET` en `.env` (generado con `openssl rand -hex 48`) — variable nueva a
   configurar también en el servidor de producción.
 
+### Datos de prueba (seed) para desarrollo — COMPLETO (2026-08-02)
+
+`npm run seed:prueba` (`backend/src/scripts/seed-datos-prueba.ts`) puebla 9 productos
+(codigos `SEED-*`, uno por categoría o dos), ~10 compras repartidas en los últimos ~75 días,
+6 compradores, y 19 ventas (mezcla contado/cuotas, whatsapp/presencial, con y sin comprador)
+repartidas en los últimos ~60 días — pensado para ejercitar las 10 métricas del dashboard a la
+vez (top productos, margen, rotación, ganancia acumulada, ABC, ticket promedio, contado vs.
+cuotas, cartera con cuotas ya vencidas/pagadas/pendientes, stock muerto, historial de costos por
+proveedor). Reutiliza los services reales (`registrarCompra`, `registrarVenta`,
+`marcarCuotaPagada`, `marcarAtrasadas`) en vez de insertar filas a mano, para que los cálculos
+(costo promedio ponderado, ganancia, generación de cuotas) sean exactamente los de producción.
+Es idempotente: si detecta que `SEED-ARE-01` ya existe, no vuelve a sembrar.
+`npm run seed:prueba:limpiar` (`limpiar-datos-prueba.ts`) borra todo lo sembrado (por código
+`SEED-*` y por los celulares de prueba) sin tocar datos reales.
+
 ### Roles y permisos — COMPLETO (2026-08-02)
 
 Pedido explícito del usuario: mantener el `admin` como está, renombrar el `user` original a
@@ -308,6 +323,14 @@ ImageMagick disponible — `pip3 install Pillow`).
   recortados/redimensionados desde el monograma con `sips`, ya que `convert`/`magick` no estaban
   instalados). Reemplaza el `favicon.ico` default de Angular (eliminado) en `index.html`, con
   `<link rel="icon" type="image/png" sizes="...">` (formato moderno) + `apple-touch-icon`.
+  **Ajuste 2026-08-02:** el fondo crema solido se veia mal en la pestaña del navegador (bajo
+  contraste, se leia como una mancha). Se generó `monograma-transparente.png` con Pillow
+  (color-key: cualquier pixel cercano a `#FBF7F6` pasa a alpha 0) y los favicon-16/32/48 se
+  regeneraron desde ahí — verificado sin fringing en fondos claros y oscuros. El
+  `apple-touch-icon` sí mantiene fondo solido (`#FBF7F6`) porque iOS rellena la transparencia
+  con negro, lo cual se veía peor que el crema. `monograma-square.png` (fondo crema, sin
+  transparencia) quedó obsoleto y se eliminó; `monograma-transparente.png` es ahora la fuente
+  para regenerar iconos a futuro.
 - Clase global `.logo-badge` / `.nav-logo` en `styles.scss`, con `background: var(--brand-cream)`
   (`#fbf7f6`, hardcodeado — no ligado a `--surface-1`) para que el fondo crema del PNG se lea
   como una tarjeta de logo intencional también en modo oscuro, en vez de un bug de transparencia.

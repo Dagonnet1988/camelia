@@ -9,7 +9,9 @@
     "start": "node dist/index.js",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed:admin": "tsx src/scripts/seed-admin.ts"
+    "seed:admin": "tsx src/scripts/seed-admin.ts",
+    "seed:prueba": "tsx src/scripts/seed-datos-prueba.ts",
+    "seed:prueba:limpiar": "tsx src/scripts/limpiar-datos-prueba.ts"
   },
   "keywords": [],
   "author": "",

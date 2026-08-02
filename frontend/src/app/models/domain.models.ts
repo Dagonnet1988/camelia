@@ -3,6 +3,13 @@ export type MedioPago = 'contado' | 'cuotas';
 export type Canal = 'whatsapp' | 'presencial';
 export type EstadoCuota = 'pendiente' | 'pagada' | 'atrasada';
 
+export interface FotoProducto {
+  id: number;
+  codigoProducto: string;
+  url: string;
+  orden: number;
+}
+
 export interface Producto {
   codigo: string;
   nombre: string;
@@ -12,6 +19,15 @@ export interface Producto {
   stockActual: number;
   stockMinimo: number;
   fechaIngreso: string;
+  fotos: FotoProducto[];
+}
+
+export interface ProductoPublico {
+  codigo: string;
+  nombre: string;
+  categoria: Categoria;
+  valorVenta: string;
+  fotos: { url: string }[];
 }
 
 export interface CrearProductoInput {

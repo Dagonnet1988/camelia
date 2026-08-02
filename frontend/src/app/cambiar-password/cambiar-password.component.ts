@@ -43,9 +43,9 @@ export class CambiarPasswordComponent {
 
     this.enviando.set(true);
     this.auth.cambiarPassword(this.passwordActual, this.passwordNueva).subscribe({
-      next: () => {
+      next: (u) => {
         this.enviando.set(false);
-        this.router.navigateByUrl('/');
+        this.router.navigateByUrl(u.rol === 'admin' || u.rol === 'manager' ? '/dashboard' : '/productos');
       },
       error: (err) => {
         this.error.set(extractError(err));

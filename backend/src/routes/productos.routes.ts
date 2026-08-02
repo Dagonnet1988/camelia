@@ -2,7 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireManagerOrAdmin } from "../lib/auth-middleware";
 import { CATEGORIAS_PRODUCTO } from "../lib/constantes";
-import { asyncHandler } from "../lib/http";
+import { asyncHandler, ApiError } from "../lib/http";
+import { uploadFotoProducto } from "../lib/upload";
 import { validateBody } from "../lib/validate";
 import * as productosService from "../services/productos.service";
 
@@ -69,6 +70,27 @@ productosRouter.delete(
   requireManagerOrAdmin,
   asyncHandler(async (req, res) => {
     await productosService.eliminarProducto(req.params["codigo"] as string);
+    res.status(204).send();
+  }),
+);
+
+productosRouter.post(
+  "/:codigo/fotos",
+  requireManagerOrAdmin,
+  uploadFotoProducto.array("fotos", 8),
+  asyncHandler(async (req, res) => {
+    const archivos = req.files as Express.Multer.File[] | undefined;
+    if (!archivos || archivos.length === 0) throw new ApiError(400, "No se recibio ninguna foto");
+    const fotos = await productosService.agregarFotos(req.params["codigo"] as string, archivos);
+    res.status(201).json(fotos);
+  }),
+);
+
+productosRouter.delete(
+  "/:codigo/fotos/:fotoId",
+  requireManagerOrAdmin,
+  asyncHandler(async (req, res) => {
+    await productosService.eliminarFoto(req.params["codigo"] as string, Number(req.params["fotoId"]));
     res.status(204).send();
   }),
 );

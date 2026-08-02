@@ -14,3 +14,45 @@
 .btn {
   margin-right: 6px;
 }
+
+.fotos-producto {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+
+  h3 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+}
+
+.fotos-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.foto-miniatura {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100px;
+
+  img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .btn {
+    margin: 0;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}

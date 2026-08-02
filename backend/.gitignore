@@ -6,3 +6,6 @@ node_modules
 
 # Credenciales de sesion de WhatsApp (Baileys) - nunca comitear
 /whatsapp-session
+
+# Fotos de productos subidas (contenido real del negocio, no del repo)
+/uploads

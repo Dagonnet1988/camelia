@@ -14,13 +14,7 @@
     </button>
     <div class="nav-links" [class.abierto]="menuAbierto()">
       @if (u.rol === 'admin' || u.rol === 'manager') {
-        <a
-          routerLink="/"
-          routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: true }"
-          (click)="menuAbierto.set(false)"
-          >Dashboard</a
-        >
+        <a routerLink="/dashboard" routerLinkActive="active" (click)="menuAbierto.set(false)">Dashboard</a>
       }
       <a routerLink="/productos" routerLinkActive="active" (click)="menuAbierto.set(false)">Catalogo</a>
       @if (u.rol === 'admin' || u.rol === 'manager') {
@@ -37,5 +31,23 @@
       <button class="nav-logout" type="button" (click)="cerrarSesion()">Cerrar sesion</button>
     </div>
   </nav>
+} @else {
+  <nav class="main-nav">
+    <span class="nav-logo">
+      <img src="brand/monograma.png" alt="Camelia" />
+    </span>
+    <span class="nav-spacer-publico"></span>
+    <button class="btn btn-secondary" type="button" (click)="mostrarLogin.set(true)">Ingresar</button>
+  </nav>
 }
+
 <router-outlet />
+
+@if (mostrarLogin()) {
+  <div class="modal-backdrop" (click)="mostrarLogin.set(false)">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <button class="modal-close" type="button" (click)="mostrarLogin.set(false)" aria-label="Cerrar">×</button>
+      <app-login-form (ingresado)="onIngresado($event)" />
+    </div>
+  </div>
+}

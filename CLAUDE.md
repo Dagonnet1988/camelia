@@ -130,14 +130,12 @@ Al insertar una compra:
 
 **Estado (actualizado 2026-08-02):** el módulo de WhatsApp (conexión, recordatorios, límites,
 historial, envíos masivos, ahora con Difusión integrada en la misma página), el login con 3
-roles, el Catálogo (ex-Productos, alimentado desde Compras), el reset de contraseña, la
-identidad de marca (favicon + logo en login/nav), y el diseño responsive de toda la app están
-completos y probados. Queda por hacer:
+roles, el Catálogo interno (ex-Productos, alimentado desde Compras), el reset de contraseña, la
+identidad de marca (favicon + logo en login/nav), el diseño responsive de toda la app, y el
+**catálogo público tipo marketplace** (página principal `/`, sin login, con fotos deslizables)
+están completos y probados. Queda por hacer:
 
 1. Despliegue (systemd/pm2 + Nginx en el Contabo).
-2. Catálogo público para compradores (con fotos) — decidido explícitamente diferir hasta
-   definir almacenamiento de fotos y qué campos son públicos vs. internos (ver sección
-   "Catálogo público — pendiente" abajo).
 
 ### Diseño responsive — COMPLETO (2026-08-01)
 
@@ -251,24 +249,50 @@ creación manual):
 - `backend/src/lib/constantes.ts`: `CATEGORIAS_PRODUCTO` extraído a constante compartida entre
   las rutas de productos y compras (evita duplicar el enum de categorías).
 
-### Catálogo público — pendiente (diferido explícitamente por el usuario, 2026-08-02)
+### Catálogo público tipo marketplace — COMPLETO (2026-08-02)
 
-El plan final es que el Catálogo sea una página pública (sin login) para que los compradores lo
-naveguen, con fotos de producto. **Se difirió a propósito** — antes de construirlo hay que
-decidir:
+Decisiones explícitas del usuario que destrabaron esto (venían diferidas desde antes):
+fotos en disco local del VPS (no cloud storage); en vez de mostrar "agotado", los productos sin
+stock simplemente **no aparecen** en el catálogo público; y la arquitectura final es el catálogo
+como página principal (`/`), con un botón "Ingresar" en la esquina que abre un modal flotante de
+login, en vez de una página `/login` separada como flujo primario.
 
-1. Dónde se guardan las fotos (disco local del VPS vs. almacenamiento en la nube).
-2. Qué campos son públicos vs. internos — probablemente ocultar `costo_promedio` y quizás
-   mostrar solo "disponible/agotado" en vez del `stock_actual` exacto.
-
-**Idea de arquitectura propuesta por el usuario (2026-08-02, aún no implementada):** el Catálogo
-público como página principal (`/`) en vez del Dashboard, con un botón de login en una esquina
-que abra una ventana flotante (modal), y las demás pestañas del nav apareciendo según el rol una
-vez autenticado — mismo patrón reactivo que ya usa `app.html` con la señal `auth.usuario()`.
-Pendiente de ejecutar: mover el Dashboard fuera de `/` (a una ruta propia), construir el backend
-público del catálogo con los campos restringidos del punto anterior, y convertir los redirects
-de los guards (`authGuard`/`managerGuard`, que hoy navegan a la página `/login`) para que abran
-el modal en vez de navegar. Mantener `/login` como ruta de respaldo para acceso directo.
+- **Backend — multi-foto:** tabla `fotos_producto` (`codigo_producto` FK, `url`, `orden`) en vez
+  de un solo campo `foto_url` — necesario para el carrusel deslizable (varias fotos por
+  producto). `backend/src/lib/upload.ts`: `multer` con `diskStorage` guardando en
+  `backend/uploads/productos/` (nombre de archivo = UUID, límite 8MB/archivo, 8 archivos, solo
+  jpg/png/webp). Servido estático en `/uploads` (`express.static`) — en dev, el proxy de Angular
+  (`frontend/proxy.conf.json`) necesitó una entrada extra para `/uploads` además de `/api`, si no
+  las imágenes daban 404 en el navegador aunque el archivo existiera en disco.
+- **Backend — endpoints de fotos** (`productos.routes.ts`, `requireManagerOrAdmin`):
+  `POST /api/productos/:codigo/fotos` (multipart, agrega) y
+  `DELETE /api/productos/:codigo/fotos/:fotoId` (borra el registro y el archivo del disco).
+- **Backend — catálogo público:** `backend/src/routes/publico.routes.ts`, montado en
+  `index.ts` como `app.use("/api/publico", publicoRouter)` **sin** `requireAuth` (antes de
+  todas las rutas protegidas). `productosService.listarCatalogoPublico()` filtra
+  `stockActual > 0` y hace `select` explícito de solo `codigo, nombre, categoria, valorVenta,
+  fotos` — nunca expone `costoPromedio` ni el `stockActual`/`stockMinimo` exactos.
+- **Frontend — página pública:** `frontend/src/app/catalogo-publico/` es ahora la ruta `''`
+  (sin guard). Grid de tarjetas estilo marketplace; cada tarjeta tiene un carrusel de fotos
+  deslizable hecho con CSS puro (`scroll-snap-type: x mandatory` + `overflow-x: auto`, sin
+  librería — funciona con swipe táctil real en mobile) y chips de filtro por categoría
+  (client-side, sobre la lista ya cargada). El Dashboard se movió de `/` a `/dashboard`
+  (sigue con `managerGuard`).
+- **Frontend — login como modal:** se extrajo `LoginFormComponent`
+  (`frontend/src/app/login/login-form.component.ts`) con la lógica de usuario/password/submit,
+  reutilizado en dos lugares: la página `/login` (que se mantiene como ruta de respaldo para
+  acceso directo/deep-link) y un modal flotante en `app.html` (`mostrarLogin` signal en
+  `app.ts`), abierto con el botón "Ingresar" que aparece en la esquina del nav cuando
+  `auth.usuario()` es null. Tras un login exitoso (ruta o modal) se redirige por rol:
+  `admin`/`manager` → `/dashboard`, `user` → `/productos` (mismo criterio aplicado también al
+  flujo de cambio de contraseña obligatorio).
+- **Frontend — gestión de fotos:** en el Catálogo interno (`/productos`, ya protegido por
+  `puedeEditar`), el formulario de edición de cada producto incluye miniaturas de sus fotos con
+  botón "Eliminar" y un input de archivo múltiple para agregar nuevas.
+- Probado end-to-end con Playwright: catálogo vacío sin login → crear producto con stock vía
+  Compras → subir foto desde el Catálogo interno → cerrar sesión → el producto aparece en `/`
+  con foto/categoría/precio → filtro por categoría → bajar el stock a 0 vía SQL confirma que el
+  producto desaparece del catálogo público (sin badge de "agotado").
 
 ### Identidad de marca — COMPLETO (2026-08-02)
 

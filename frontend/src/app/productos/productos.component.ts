@@ -1,6 +1,6 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import type { Categoria, Producto } from '../models/domain.models';
+import type { Categoria, FotoProducto, Producto } from '../models/domain.models';
 import { AuthService } from '../services/auth.service';
 import { ProductosService } from '../services/productos.service';
 import { extractError } from '../shared/http-error';
@@ -28,6 +28,9 @@ export class ProductosComponent implements OnInit {
   guardando = signal(false);
 
   form: EdicionProducto = { nombre: '', categoria: 'arete', valorVenta: null, stockMinimo: 0 };
+
+  archivosFoto: File[] = [];
+  subiendoFotos = signal(false);
 
   constructor(
     private productosService: ProductosService,
@@ -60,6 +63,44 @@ export class ProductosComponent implements OnInit {
 
   cancelarEdicion(): void {
     this.editandoCodigo.set(null);
+    this.archivosFoto = [];
+  }
+
+  get fotosDelProductoEditado(): FotoProducto[] {
+    const codigo = this.editandoCodigo();
+    return this.productos().find((p) => p.codigo === codigo)?.fotos ?? [];
+  }
+
+  onArchivosSeleccionados(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.archivosFoto = input.files ? Array.from(input.files) : [];
+  }
+
+  subirFotos(): void {
+    const codigo = this.editandoCodigo();
+    if (!codigo || this.archivosFoto.length === 0) return;
+
+    this.subiendoFotos.set(true);
+    this.productosService.subirFotos(codigo, this.archivosFoto).subscribe({
+      next: () => {
+        this.subiendoFotos.set(false);
+        this.archivosFoto = [];
+        this.cargar();
+      },
+      error: (err) => {
+        this.error.set(extractError(err));
+        this.subiendoFotos.set(false);
+      },
+    });
+  }
+
+  eliminarFoto(foto: FotoProducto): void {
+    const codigo = this.editandoCodigo();
+    if (!codigo) return;
+    this.productosService.eliminarFoto(codigo, foto.id).subscribe({
+      next: () => this.cargar(),
+      error: (err) => this.error.set(extractError(err)),
+    });
   }
 
   guardar(): void {

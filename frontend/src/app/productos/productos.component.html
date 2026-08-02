@@ -51,6 +51,30 @@
         </div>
       </div>
     </form>
+
+    <div class="fotos-producto">
+      <h3>Fotos (catálogo público)</h3>
+      @if (fotosDelProductoEditado.length > 0) {
+        <div class="fotos-lista">
+          @for (f of fotosDelProductoEditado; track f.id) {
+            <div class="foto-miniatura">
+              <img [src]="f.url" alt="" />
+              <button class="btn btn-danger" type="button" (click)="eliminarFoto(f)">Eliminar</button>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="hint">Este producto todavía no tiene fotos.</p>
+      }
+
+      <div class="field">
+        <label>Agregar fotos</label>
+        <input type="file" accept="image/png,image/jpeg,image/webp" multiple (change)="onArchivosSeleccionados($event)" />
+      </div>
+      <button class="btn" type="button" [disabled]="subiendoFotos() || archivosFoto.length === 0" (click)="subirFotos()">
+        Subir fotos
+      </button>
+    </div>
   </section>
 }
 

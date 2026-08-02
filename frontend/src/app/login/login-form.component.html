@@ -1,0 +1,16 @@
+<form (ngSubmit)="ingresar()">
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+
+  <div class="field">
+    <label>Usuario</label>
+    <input name="usuario" [(ngModel)]="usuario" autocomplete="username" required autofocus />
+  </div>
+  <div class="field">
+    <label>Contraseña</label>
+    <input type="password" name="password" [(ngModel)]="password" autocomplete="current-password" required />
+  </div>
+
+  <button class="btn" type="submit" [disabled]="enviando()">Ingresar</button>
+</form>

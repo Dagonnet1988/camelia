@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { CatalogoPublicoComponent } from './catalogo-publico/catalogo-publico.component';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { ProductosComponent } from './productos/productos.component';
 import { ComprasComponent } from './compras/compras.component';
@@ -13,9 +14,10 @@ import { adminGuard } from './guards/admin.guard';
 import { managerGuard } from './guards/manager.guard';
 
 export const routes: Routes = [
+  { path: '', component: CatalogoPublicoComponent },
   { path: 'login', component: LoginComponent },
   { path: 'cambiar-password', component: CambiarPasswordComponent, canActivate: [soloAutenticadoGuard] },
-  { path: '', component: DashboardComponent, canActivate: [managerGuard] },
+  { path: 'dashboard', component: DashboardComponent, canActivate: [managerGuard] },
   { path: 'productos', component: ProductosComponent, canActivate: [authGuard] },
   { path: 'compras', component: ComprasComponent, canActivate: [managerGuard] },
   { path: 'compradores', component: CompradoresComponent, canActivate: [authGuard] },

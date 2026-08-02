@@ -1,0 +1,119 @@
+:host {
+  display: block;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.catalogo-publico-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+
+  .logo-badge {
+    padding: 10px 24px;
+  }
+}
+
+.filtros-categoria {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  text-transform: capitalize;
+
+  &.active {
+    background: var(--text-primary);
+    color: var(--surface-1);
+    border-color: var(--text-primary);
+  }
+}
+
+.catalogo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.producto-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.foto-carrusel {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  aspect-ratio: 1 / 1;
+  background: var(--brand-cream);
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.foto-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.foto-placeholder img {
+  width: 45%;
+  height: 45%;
+  object-fit: contain;
+}
+
+.producto-info {
+  padding: 12px 14px 16px;
+}
+
+.badge-categoria {
+  display: inline-block;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+.producto-info h3 {
+  margin: 4px 0 6px;
+  font-size: 15px;
+}
+
+.precio {
+  margin: 0;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+@media (max-width: 640px) {
+  :host {
+    padding: 16px;
+  }
+}

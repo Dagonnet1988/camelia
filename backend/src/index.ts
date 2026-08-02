@@ -1,4 +1,5 @@
 import "dotenv/config";
+import path from "node:path";
 import cookieParser from "cookie-parser";
 import express from "express";
 import { errorHandler } from "./lib/http";
@@ -21,6 +22,7 @@ import { compradoresRouter } from "./routes/compradores.routes";
 import { cuotasRouter } from "./routes/cuotas.routes";
 import { metricsRouter } from "./routes/metrics.routes";
 import { productosRouter } from "./routes/productos.routes";
+import { publicoRouter } from "./routes/publico.routes";
 import { usuariosRouter } from "./routes/usuarios.routes";
 import { ventasRouter } from "./routes/ventas.routes";
 import { whatsappRouter } from "./routes/whatsapp.routes";
@@ -31,6 +33,7 @@ import { programarRecordatoriosCuotas } from "./whatsapp/recordatorios";
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 const PORT = process.env["PORT"] ?? 3000;
 
@@ -38,6 +41,9 @@ app.get("/health", async (_req, res) => {
   await prisma.$queryRaw`SELECT 1`;
   res.json({ status: "ok" });
 });
+
+// Catalogo publico para compradores (sin login) - fotos, nombre, categoria y precio; oculta agotados.
+app.use("/api/publico", publicoRouter);
 
 // /api/auth/login y /logout son publicas; /me y /cambiar-password se protegen adentro del router.
 app.use("/api/auth", authRouter);

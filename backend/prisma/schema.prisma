@@ -43,8 +43,21 @@ model Producto {
 
   compras CompraInventario[]
   ventas  Venta[]
+  fotos   FotoProducto[]
 
   @@map("productos")
+}
+
+model FotoProducto {
+  id             Int      @id @default(autoincrement())
+  codigoProducto String   @map("codigo_producto")
+  url            String
+  orden          Int      @default(0)
+  fechaCreacion  DateTime @default(now()) @map("fecha_creacion")
+
+  producto Producto @relation(fields: [codigoProducto], references: [codigo], onDelete: Cascade)
+
+  @@map("fotos_producto")
 }
 
 model CompraInventario {

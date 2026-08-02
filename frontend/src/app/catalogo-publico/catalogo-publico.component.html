@@ -1,0 +1,47 @@
+<header class="catalogo-publico-header">
+  <div class="logo-badge">
+    <img src="brand/logo-maestro.png" alt="Camelia — Detalles que te hacen especial" width="200" height="128" />
+  </div>
+</header>
+
+<div class="filtros-categoria">
+  <button class="chip" type="button" [class.active]="categoriaActiva() === 'todas'" (click)="categoriaActiva.set('todas')">
+    Todas
+  </button>
+  @for (c of categorias; track c) {
+    <button class="chip" type="button" [class.active]="categoriaActiva() === c" (click)="categoriaActiva.set(c)">
+      {{ c }}
+    </button>
+  }
+</div>
+
+@if (cargando()) {
+  <p class="callout">Cargando catálogo...</p>
+} @else if (filtrados().length === 0) {
+  <p class="callout">No hay productos disponibles en esta categoría por ahora.</p>
+} @else {
+  <div class="catalogo-grid">
+    @for (p of filtrados(); track p.codigo) {
+      <article class="producto-card">
+        <div class="foto-carrusel">
+          @if (p.fotos.length > 0) {
+            @for (f of p.fotos; track f.url) {
+              <div class="foto-slide">
+                <img [src]="f.url" [alt]="p.nombre" loading="lazy" />
+              </div>
+            }
+          } @else {
+            <div class="foto-slide foto-placeholder">
+              <img src="brand/monograma.png" alt="Camelia" />
+            </div>
+          }
+        </div>
+        <div class="producto-info">
+          <span class="badge-categoria">{{ p.categoria }}</span>
+          <h3>{{ p.nombre }}</h3>
+          <p class="precio">{{ formatMoneda(p.valorVenta) }}</p>
+        </div>
+      </article>
+    }
+  </div>
+}

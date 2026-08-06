@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/generated && cp -r src/generated/prisma dist/generated/prisma",
     "start": "node dist/index.js",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",

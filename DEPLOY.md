@@ -1,21 +1,24 @@
 # Despliegue de Camelia al VPS Contabo
 
 Guía paso a paso para desplegar Camelia en el mismo VPS donde ya corre Ramelo
-(Nginx + PM2, sin Docker). Reemplaza los placeholders entre `<...>` por tus
-valores reales antes de ejecutar cada bloque.
+(Nginx + PM2, sin Docker), en `camelia.ramelo.app`.
 
-Placeholders usados en esta guía:
+Valores ya confirmados contra la configuración real de Ramelo
+(`sudo nginx -T`, revisado 2026-08-06):
 
-- `<DOMINIO>` — el dominio/subdominio de Camelia (ej. `camelia.tudominio.com`).
-- `<RUTA_APP>` — carpeta donde vivirá el repo en el servidor (ej. `/home/<usuario>/apps/camelia` o `/var/www/camelia`, sugerido: el mismo patrón que ya usas para Ramelo).
-- `<PUERTO_BACKEND>` — puerto interno donde escucha el backend de Camelia (sugerido `3100`, pero usa cualquiera que no choque con el puerto de Ramelo).
-- `<REPO_URL>` — URL del repositorio en GitHub una vez lo crees y yo haga el push.
+- **Dominio:** `camelia.ramelo.app`.
+- **Ruta del repo:** `/var/www/camelia` (mismo patrón que `/var/www/vetplus` de Ramelo — ajústalo si prefieres otra convención, solo mantenlo consistente en toda esta guía).
+- **Puerto del backend:** `4000`. El backend de Ramelo ya usa el `3000` (`proxy_pass http://127.0.0.1:3000` en el bloque `api.ramelo.app`), así que Camelia necesita un puerto distinto. Confirma que el `4000` esté libre antes de arrancar: `sudo ss -tlnp | grep 4000` (no debería devolver nada).
+- **Certificado TLS:** ya existe uno wildcard en `/etc/letsencrypt/live/ramelo-wildcard/` que cubre `*.ramelo.app` — **no hace falta correr Certbot de nuevo**, Camelia reutiliza el mismo certificado (ver sección 8).
+- **DNS:** como el certificado es wildcard (requiere validación DNS-01), `*.ramelo.app` ya está wildcardeado en Cloudflare — `camelia.ramelo.app` ya debería resolver al VPS sin crear un registro DNS nuevo. Verifica con `dig camelia.ramelo.app` antes de la sección 8; si no resuelve, revisa el panel de Cloudflare.
+- **Repo:** `https://github.com/Dagonnet1988/camelia.git` (ya con todo el código pusheado).
 
 ## 0. Antes de empezar
 
 - Confirma la versión de Node del servidor: `node -v`. Este proyecto se desarrolló con Node 24 y no fija un mínimo explícito (`engines` no está declarado) — si el servidor tiene una versión más vieja (ej. 18 LTS), debería funcionar igual, pero avísame si ves errores raros al instalar dependencias o correr `prisma generate`.
-- Confirma que `pm2` y `nginx` ya están instalados y corriendo (para Ramelo, así que deberían estarlo).
-- Confirma el puerto donde escucha el backend de Ramelo (`pm2 list` o revisa su config) para no chocar con `<PUERTO_BACKEND>`.
+- `pm2` y `nginx` ya están instalados y corriendo (para Ramelo).
+- `sudo ss -tlnp | grep 4000` → debe salir vacío (puerto libre para Camelia).
+- `dig camelia.ramelo.app` → debe resolver a la misma IP que `ramelo.app`.
 
 ## 1. Base de datos Postgres
 
@@ -44,14 +47,16 @@ Guarda esa contraseña — la necesitas para el `.env` del paso 3.
 ## 2. Clonar el repositorio
 
 ```bash
-git clone <REPO_URL> <RUTA_APP>
-cd <RUTA_APP>
+sudo mkdir -p /var/www/camelia
+sudo chown $USER:$USER /var/www/camelia
+git clone https://github.com/Dagonnet1988/camelia.git /var/www/camelia
+cd /var/www/camelia
 ```
 
 ## 3. Backend: variables de entorno
 
 ```bash
-cd <RUTA_APP>/backend
+cd /var/www/camelia/backend
 cp .env.example .env
 ```
 
@@ -59,7 +64,7 @@ Edita `.env` con los valores reales:
 
 ```bash
 DATABASE_URL="postgresql://camelia_user:<contraseña-del-paso-1>@localhost:5432/bisuteria_db?schema=public"
-PORT=<PUERTO_BACKEND>
+PORT=4000
 JWT_SECRET="<genera-con: openssl rand -hex 48>"
 NODE_ENV=production
 ```
@@ -69,13 +74,13 @@ NODE_ENV=production
 ## 4. Backend: instalar, migrar, construir
 
 ```bash
-cd <RUTA_APP>/backend
+cd /var/www/camelia/backend
 npm ci
 npx prisma migrate deploy
 npm run build
 ```
 
-`prisma migrate deploy` aplica las 12 migraciones existentes contra
+`prisma migrate deploy` aplica las migraciones existentes contra
 `bisuteria_db` (crea todas las tablas). `npm run build` compila TypeScript a
 `dist/`.
 
@@ -96,22 +101,22 @@ para desarrollo.
 
 ## 6. Backend: arrancar con PM2
 
-Desde `<RUTA_APP>/backend`:
+Desde `/var/www/camelia/backend`:
 
 ```bash
 pm2 start dist/index.js --name camelia-backend --time
 pm2 save
 ```
 
-`pm2 save` asegura que sobreviva a un reinicio del servidor (asumiendo que
-ya tienes `pm2 startup` configurado para Ramelo — no hace falta repetirlo,
-es a nivel de sistema).
+`pm2 save` asegura que sobreviva a un reinicio del servidor (ya tienes
+`pm2 startup` configurado a nivel de sistema para Ramelo — no hace falta
+repetirlo).
 
 Verifica que levantó bien:
 
 ```bash
 pm2 logs camelia-backend --lines 50
-curl http://localhost:<PUERTO_BACKEND>/health
+curl http://localhost:4000/health
 ```
 
 Deberías ver `{"status":"ok"}`.
@@ -119,32 +124,76 @@ Deberías ver `{"status":"ok"}`.
 ## 7. Frontend: build
 
 ```bash
-cd <RUTA_APP>/frontend
+cd /var/www/camelia/frontend
 npm ci
 npm run build
 ```
 
-Esto genera `<RUTA_APP>/frontend/dist/frontend/` — son archivos estáticos
-que Nginx sirve directamente (no corre como proceso Node).
+Esto genera `/var/www/camelia/frontend/dist/frontend/browser/` — son
+archivos estáticos que Nginx sirve directamente (no corre como proceso
+Node). Confirmado localmente que el build cae en la subcarpeta `browser/`
+(no `dist/frontend/` directo).
 
-## 8. Nginx: bloque de servidor para <DOMINIO>
+## 8. Nginx: bloque de servidor para camelia.ramelo.app
+
+Ramelo ya tiene, en `/etc/nginx/sites-enabled/vetplus`, dos bloques con
+`server_name ramelo.app *.ramelo.app;` (uno HTTP→HTTPS redirect, otro HTTPS
+sirviendo el frontend de Ramelo). Nginx resuelve qué bloque usa por
+**coincidencia exacta de `server_name` antes que comodín**, sin importar en
+qué archivo esté declarado ni el orden de carga — así que un bloque nuevo
+con `server_name camelia.ramelo.app;` (exacto) siempre gana sobre el
+`*.ramelo.app` de Ramelo para ese host específico. El tráfico de
+`camelia.ramelo.app` nunca llega a la lógica de tenants de Ramelo.
+
+No hace falta un bloque nuevo en el puerto 80: el bloque existente de
+Ramelo `server_name ramelo.app *.ramelo.app;` en el puerto 80 ya redirige
+`camelia.ramelo.app` a HTTPS (usa `$host`, así que preserva el subdominio
+correcto). Solo se necesita el bloque HTTPS.
 
 Crea `/etc/nginx/sites-available/camelia`:
 
 ```nginx
 server {
-    listen 80;
-    server_name <DOMINIO>;
+    listen 443 ssl http2;
+    server_name camelia.ramelo.app;
 
-    root <RUTA_APP>/frontend/dist/frontend/browser;
+    # Reutiliza el certificado wildcard existente de Ramelo (cubre *.ramelo.app) —
+    # no se generó un certificado nuevo para este subdominio.
+    ssl_certificate /etc/letsencrypt/live/ramelo-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ramelo-wildcard/privkey.pem;
+
+    client_max_body_size 25m;
+
+    root /var/www/camelia/frontend/dist/frontend/browser;
     index index.html;
 
-    location / {
-        try_files $uri $uri/ /index.html;
+    gzip on;
+    gzip_comp_level 6;
+    gzip_min_length 1024;
+    gzip_vary on;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        application/json
+        application/javascript
+        application/xml
+        application/rss+xml
+        image/svg+xml;
+
+    location = /index.html {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    location ~* \.(?:js|css|woff2?|png|jpe?g|webp|svg|ico)$ {
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000, immutable" always;
+        try_files $uri =404;
     }
 
     location /api/ {
-        proxy_pass http://127.0.0.1:<PUERTO_BACKEND>;
+        proxy_pass http://127.0.0.1:4000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -153,16 +202,15 @@ server {
     }
 
     location /uploads/ {
-        proxy_pass http://127.0.0.1:<PUERTO_BACKEND>;
+        proxy_pass http://127.0.0.1:4000;
         proxy_set_header Host $host;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
     }
 }
 ```
-
-> Confirmado localmente: el build genera `dist/frontend/browser/` (no
-> `dist/frontend/` directo) — el `root` de arriba ya apunta ahí. Si en algún
-> momento actualizas la versión de Angular y esto cambia, corrígelo con
-> `ls <RUTA_APP>/frontend/dist/frontend/` después del build.
 
 Actívalo:
 
@@ -175,25 +223,28 @@ sudo systemctl reload nginx
 `nginx -t` valida la sintaxis antes de recargar — si falla, Nginx sigue
 sirviendo Ramelo sin interrupción hasta que se corrija.
 
-## 9. HTTPS con Certbot
+**Verifica que el certificado wildcard realmente cubra el subdominio** antes
+de dar esto por hecho:
 
 ```bash
-sudo certbot --nginx -d <DOMINIO>
+sudo certbot certificates | grep -A3 ramelo-wildcard
 ```
 
-Esto obtiene el certificado y ajusta automáticamente el bloque de Nginx para
-redirigir HTTP → HTTPS. **Este paso no es opcional**: el login de Camelia usa
-una cookie `secure: true` en producción (`NODE_ENV=production`), que el
-navegador rechaza en HTTP puro — sin HTTPS el login queda roto.
+Deberías ver `*.ramelo.app` (y probablemente también `ramelo.app`) en
+"Domains". Si por alguna razón no aparece `*.ramelo.app` ahí, avísame antes
+de continuar — en ese caso sí habría que emitir un certificado dedicado
+(con `certbot certonly --dns-cloudflare` dado que es un dominio
+Cloudflare-proxied, no el `--nginx` simple que usa HTTP-01).
 
-## 10. Verificación final
+## 9. Verificación final
 
-- Abre `https://<DOMINIO>/` — deberías ver el catálogo público.
+- Abre `https://camelia.ramelo.app/` — deberías ver el catálogo público.
 - Entra con el usuario admin del paso 5.
 - Revisa `pm2 logs camelia-backend` mientras navegas para confirmar que no
   hay errores.
-- Confirma que Ramelo sigue funcionando normal en su propio dominio (no debería
-  haberse tocado nada de su configuración).
+- Confirma que `https://ramelo.app/` y `https://api.ramelo.app/` siguen
+  funcionando normal (no debería haberse tocado nada de su configuración,
+  pero vale la pena confirmarlo tras el `reload` de Nginx).
 
 ## Notas para redeploys futuros
 
@@ -208,3 +259,7 @@ navegador rechaza en HTTP puro — sin HTTPS el login queda roto.
 - El módulo de WhatsApp (Baileys) requiere volver a vincular el número
   (escanear QR) la primera vez que arranca en el servidor nuevo — la sesión
   del VPS de desarrollo no se puede copiar/reutilizar.
+- El certificado wildcard de Ramelo se renueva automáticamente vía el timer
+  de Certbot del sistema (`systemctl status certbot.timer`) — como Camelia
+  solo referencia esos mismos archivos, se beneficia de la renovación
+  automática sin configuración extra.

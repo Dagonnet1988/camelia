@@ -109,9 +109,9 @@ comando explícitamente — si te saltas este paso, el backend arranca con
 `Error: Cannot find module '../generated/prisma/client'` en los logs de
 PM2. `npm run build` compila TypeScript a `dist/`.
 
-> **Dos bugs reales encontrados en el primer despliegue** (ya corregidos en
+> **Tres bugs reales encontrados en el primer despliegue** (ya corregidos en
 > el repo, solo asegúrate de tener el código actualizado con `git pull`
-> antes de este paso si clonaste antes del commit `2ba7eed`):
+> antes de este paso si clonaste antes del commit `a0c802d`):
 >
 > 1. El generador de Prisma (`provider = "prisma-client"`) sin
 >    `moduleFormat` explícito emite código ESM (`import.meta.url`) aunque
@@ -126,10 +126,18 @@ PM2. `npm run build` compila TypeScript a `dist/`.
 >    `dist/lib/prisma.js` apuntaba a un `dist/generated/prisma/` que nunca
 >    existió. El script `build` en `package.json` ahora copia esa carpeta a
 >    `dist/generated/prisma` después de `tsc`.
+> 3. El backend arrancaba en el puerto **3000** en vez del `4000` del
+>    `.env`, pese a que el `.env` y el `exec cwd` de PM2 estaban correctos.
+>    `dotenv` por defecto **nunca sobreescribe** una variable que ya exista
+>    en `process.env` — y algo en el entorno heredado de PM2/la shell del
+>    servidor (compartido con Ramelo) ya traía `PORT` definido, así que
+>    Camelia ignoraba silenciosamente el de su propio `.env`. Se cambió a
+>    `dotenv.config({ override: true })` en `index.ts` y `prisma.config.ts`
+>    para que el `.env` propio de Camelia siempre gane sobre lo heredado.
 >
-> Ambos se manifiestan **solo** al correr el build compilado (`node
+> Los tres se manifiestan **solo** al correr el build compilado (`node
 > dist/index.js`, como hace PM2) — nunca aparecen en `npm run dev` porque
-> `tsx` corre el TypeScript directo desde `src/`. Verificado localmente
+> `tsx` corre el TypeScript directo desde `src/`. Verificados localmente
 > corriendo `node dist/index.js` sin intermediarios.
 
 ## 5. Backend: usuario admin inicial

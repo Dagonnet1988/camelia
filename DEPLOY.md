@@ -90,18 +90,24 @@ NODE_ENV=production
 
 `.env` nunca se commitea (está en `.gitignore`) — vive solo en el servidor.
 
-## 4. Backend: instalar, migrar, construir
+## 4. Backend: instalar, migrar, generar cliente, construir
 
 ```bash
 cd /var/www/camelia/backend
 npm ci
 npx prisma migrate deploy
+npx prisma generate
 npm run build
 ```
 
 `prisma migrate deploy` aplica las migraciones existentes contra
-`bisuteria_db` (crea todas las tablas). `npm run build` compila TypeScript a
-`dist/`.
+`bisuteria_db` (crea todas las tablas) — **pero no regenera el cliente de
+Prisma**, eso es un paso aparte (`prisma generate`). El cliente generado
+vive en `backend/src/generated/prisma/` y está en `.gitignore` (es código
+generado, no se commitea), así que esa carpeta no existe hasta correr este
+comando explícitamente — si te saltas este paso, el backend arranca con
+`Error: Cannot find module '../generated/prisma/client'` en los logs de
+PM2. `npm run build` compila TypeScript a `dist/`.
 
 ## 5. Backend: usuario admin inicial
 

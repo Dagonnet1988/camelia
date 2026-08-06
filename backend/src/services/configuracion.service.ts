@@ -14,6 +14,7 @@ export interface CambiosConfiguracion {
   limiteMensajesDia?: number | null;
   envioMasivoDelayMinSeg?: number;
   envioMasivoDelayMaxSeg?: number;
+  recargoCuotasGlobal?: number;
 }
 
 export async function actualizarConfiguracion(cambios: CambiosConfiguracion) {

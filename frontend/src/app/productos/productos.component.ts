@@ -146,4 +146,9 @@ export class ProductosComponent implements OnInit {
   stockBajo(p: Producto): boolean {
     return p.stockActual <= p.stockMinimo;
   }
+
+  comisionEstimada(p: Producto): number {
+    const porcentaje = Number(this.auth.usuario()?.porcentajeComision ?? 0);
+    return (Number(p.valorVenta) * porcentaje) / 100;
+  }
 }

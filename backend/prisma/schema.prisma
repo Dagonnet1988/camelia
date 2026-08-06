@@ -36,6 +36,12 @@ enum EstadoComision {
   liquidada
 }
 
+enum FrecuenciaCuotas {
+  semanal
+  quincenal
+  mensual
+}
+
 model Producto {
   codigo        String            @id
   nombre        String
@@ -89,24 +95,25 @@ model Comprador {
 }
 
 model Venta {
-  id                     Int            @id @default(autoincrement())
-  codigoProducto         String         @map("codigo_producto")
-  compradorCelular       String?        @map("comprador_celular")
+  id                     Int               @id @default(autoincrement())
+  codigoProducto         String            @map("codigo_producto")
+  compradorCelular       String?           @map("comprador_celular")
   cantidad               Int
-  valorContado           Decimal        @map("valor_contado") @db.Decimal(12, 2)
-  medioPago              MedioPago      @map("medio_pago")
-  numCuotas              Int?           @map("num_cuotas")
-  recargoCuotas          Decimal?       @map("recargo_cuotas") @db.Decimal(12, 2)
-  valorTotalVenta        Decimal        @map("valor_total_venta") @db.Decimal(12, 2)
-  costoPromedioAlMomento Decimal        @map("costo_promedio_al_momento") @db.Decimal(12, 2)
-  ganancia               Decimal        @db.Decimal(12, 2)
+  valorContado           Decimal           @map("valor_contado") @db.Decimal(12, 2)
+  medioPago              MedioPago         @map("medio_pago")
+  numCuotas              Int?              @map("num_cuotas")
+  frecuenciaCuotas       FrecuenciaCuotas? @map("frecuencia_cuotas")
+  recargoCuotas          Decimal?          @map("recargo_cuotas") @db.Decimal(12, 2)
+  valorTotalVenta        Decimal           @map("valor_total_venta") @db.Decimal(12, 2)
+  costoPromedioAlMomento Decimal           @map("costo_promedio_al_momento") @db.Decimal(12, 2)
+  ganancia               Decimal           @db.Decimal(12, 2)
   canal                  Canal
-  fechaVenta             DateTime       @default(now()) @map("fecha_venta")
-  vendedorId             Int?           @map("vendedor_id")
-  comisionPorcentaje     Decimal        @default(0) @map("comision_porcentaje") @db.Decimal(5, 2)
-  comision               Decimal        @default(0) @db.Decimal(12, 2)
-  comisionEstado         EstadoComision @default(pendiente) @map("comision_estado")
-  liquidacionId          Int?           @map("liquidacion_id")
+  fechaVenta             DateTime          @default(now()) @map("fecha_venta")
+  vendedorId             Int?              @map("vendedor_id")
+  comisionPorcentaje     Decimal           @default(0) @map("comision_porcentaje") @db.Decimal(5, 2)
+  comision               Decimal           @default(0) @db.Decimal(12, 2)
+  comisionEstado         EstadoComision    @default(pendiente) @map("comision_estado")
+  liquidacionId          Int?              @map("liquidacion_id")
 
   producto    Producto     @relation(fields: [codigoProducto], references: [codigo])
   comprador   Comprador?   @relation(fields: [compradorCelular], references: [celular])
@@ -122,7 +129,7 @@ model Liquidacion {
   vendedorId       Int      @map("vendedor_id")
   generadaPorId    Int      @map("generada_por_id")
   fechaLiquidacion DateTime @default(now()) @map("fecha_liquidacion")
-  totalComision    Decimal  @db.Decimal(12, 2) @map("total_comision")
+  totalComision    Decimal  @map("total_comision") @db.Decimal(12, 2)
   cantidadVentas   Int      @map("cantidad_ventas")
 
   vendedor    Usuario @relation("LiquidacionesVendedor", fields: [vendedorId], references: [id])
@@ -133,14 +140,14 @@ model Liquidacion {
 }
 
 model Cuota {
-  id               Int         @id @default(autoincrement())
-  idVenta          Int         @map("id_venta")
-  numeroCuota      Int         @map("numero_cuota")
-  valorCuota       Decimal     @map("valor_cuota") @db.Decimal(12, 2)
-  fechaVencimiento DateTime    @map("fecha_vencimiento") @db.Date
-  fechaPago        DateTime?   @map("fecha_pago") @db.Date
-  estado           EstadoCuota @default(pendiente)
-  recordatorioEnviado Boolean  @default(false) @map("recordatorio_enviado")
+  id                  Int         @id @default(autoincrement())
+  idVenta             Int         @map("id_venta")
+  numeroCuota         Int         @map("numero_cuota")
+  valorCuota          Decimal     @map("valor_cuota") @db.Decimal(12, 2)
+  fechaVencimiento    DateTime    @map("fecha_vencimiento") @db.Date
+  fechaPago           DateTime?   @map("fecha_pago") @db.Date
+  estado              EstadoCuota @default(pendiente)
+  recordatorioEnviado Boolean     @default(false) @map("recordatorio_enviado")
 
   venta Venta @relation(fields: [idVenta], references: [id])
 
@@ -154,6 +161,7 @@ model ConfiguracionApp {
   limiteMensajesDia          Int?    @default(100) @map("limite_mensajes_dia")
   envioMasivoDelayMinSeg     Int     @default(5) @map("envio_masivo_delay_min_seg")
   envioMasivoDelayMaxSeg     Int     @default(15) @map("envio_masivo_delay_max_seg")
+  recargoCuotasGlobal        Decimal @default(0) @map("recargo_cuotas_global") @db.Decimal(12, 2)
 
   @@map("configuracion_app")
 }

@@ -1,5 +1,5 @@
 <header class="page-header">
-  <h1>Catalogo</h1>
+  <h1>Productos</h1>
   <p>
     Productos, precios y stock. Los productos nuevos se dan de alta desde
     <strong>Compras</strong> al registrar el primer ingreso de inventario.
@@ -88,7 +88,7 @@
 }
 
 <section class="card" [style.margin-top.px]="puedeEditar && editandoCodigo() ? 20 : 0">
-  <h2>Catalogo ({{ productos().length }})</h2>
+  <h2>Productos ({{ productos().length }})</h2>
   <div class="table-scroll">
     <table>
       <thead>
@@ -97,7 +97,7 @@
           <th>Nombre</th>
           <th>Categoria</th>
           <th class="num">Valor venta</th>
-          <th class="num">Costo prom.</th>
+          <th class="num">Comisión</th>
           <th class="num">Stock</th>
           <th class="num">Stock min.</th>
           @if (puedeEditar) {
@@ -112,7 +112,7 @@
             <td>{{ p.nombre }}</td>
             <td>{{ p.categoria }}</td>
             <td class="num">{{ p.valorVenta }}</td>
-            <td class="num">{{ p.costoPromedio }}</td>
+            <td class="num">{{ comisionEstimada(p) }}</td>
             <td class="num">
               {{ p.stockActual }}
               @if (stockBajo(p)) {

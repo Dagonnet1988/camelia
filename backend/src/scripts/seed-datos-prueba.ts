@@ -1,5 +1,5 @@
 import "dotenv/config";
-import type { CategoriaProducto, Canal, MedioPago } from "../generated/prisma/enums";
+import type { CategoriaProducto, Canal, FrecuenciaCuotas, MedioPago } from "../generated/prisma/enums";
 import { prisma } from "../lib/prisma";
 import { registrarCompra } from "../services/compras.service";
 import { marcarAtrasadas, marcarCuotaPagada } from "../services/cuotas.service";
@@ -57,30 +57,34 @@ interface VentaSeed {
   cantidad: number;
   medioPago: MedioPago;
   numCuotas?: number;
-  recargoCuotas?: number;
+  frecuenciaCuotas?: FrecuenciaCuotas;
   canal: Canal;
   fechaVenta: Date;
 }
 
+// El recargo por cuotas ahora es global (configuracion_app.recargo_cuotas_global, ajustable
+// desde el modulo Comisiones) en vez de un valor por venta - ver SEED_RECARGO_CUOTAS abajo.
+const SEED_RECARGO_CUOTAS = 5000;
+
 const VENTAS: VentaSeed[] = [
   { codigoProducto: "SEED-ARE-01", compradorCelular: "3001112233", cantidad: 2, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(58) },
-  { codigoProducto: "SEED-ANI-01", compradorCelular: "3012223344", cantidad: 1, medioPago: "cuotas", numCuotas: 2, recargoCuotas: 4000, canal: "whatsapp", fechaVenta: dias(70) },
+  { codigoProducto: "SEED-ANI-01", compradorCelular: "3012223344", cantidad: 1, medioPago: "cuotas", numCuotas: 2, frecuenciaCuotas: "mensual", canal: "whatsapp", fechaVenta: dias(70) },
   { codigoProducto: "SEED-MAN-01", cantidad: 1, medioPago: "contado", canal: "presencial", fechaVenta: dias(52) },
-  { codigoProducto: "SEED-COL-01", compradorCelular: "3023334455", cantidad: 1, medioPago: "cuotas", numCuotas: 3, recargoCuotas: 6000, canal: "whatsapp", fechaVenta: dias(45) },
+  { codigoProducto: "SEED-COL-01", compradorCelular: "3023334455", cantidad: 1, medioPago: "cuotas", numCuotas: 3, frecuenciaCuotas: "mensual", canal: "whatsapp", fechaVenta: dias(45) },
   { codigoProducto: "SEED-ARE-02", compradorCelular: "3034445566", cantidad: 1, medioPago: "contado", canal: "presencial", fechaVenta: dias(40) },
   { codigoProducto: "SEED-ANI-02", cantidad: 1, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(38) },
   { codigoProducto: "SEED-MAN-02", compradorCelular: "3001112233", cantidad: 2, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(35) },
-  { codigoProducto: "SEED-OTR-01", compradorCelular: "3045556677", cantidad: 1, medioPago: "cuotas", numCuotas: 3, recargoCuotas: 9000, canal: "presencial", fechaVenta: dias(32) },
+  { codigoProducto: "SEED-OTR-01", compradorCelular: "3045556677", cantidad: 1, medioPago: "cuotas", numCuotas: 3, frecuenciaCuotas: "mensual", canal: "presencial", fechaVenta: dias(32) },
   { codigoProducto: "SEED-COL-02", compradorCelular: "3056667788", cantidad: 1, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(28) },
   { codigoProducto: "SEED-ARE-01", compradorCelular: "3012223344", cantidad: 1, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(25) },
   { codigoProducto: "SEED-ANI-01", cantidad: 1, medioPago: "contado", canal: "presencial", fechaVenta: dias(22) },
-  { codigoProducto: "SEED-MAN-01", compradorCelular: "3023334455", cantidad: 2, medioPago: "cuotas", numCuotas: 2, recargoCuotas: 3000, canal: "whatsapp", fechaVenta: dias(20) },
+  { codigoProducto: "SEED-MAN-01", compradorCelular: "3023334455", cantidad: 2, medioPago: "cuotas", numCuotas: 2, frecuenciaCuotas: "mensual", canal: "whatsapp", fechaVenta: dias(20) },
   { codigoProducto: "SEED-ARE-02", cantidad: 1, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(18) },
   { codigoProducto: "SEED-COL-01", compradorCelular: "3034445566", cantidad: 1, medioPago: "contado", canal: "presencial", fechaVenta: dias(15) },
-  { codigoProducto: "SEED-ANI-02", compradorCelular: "3001112233", cantidad: 1, medioPago: "cuotas", numCuotas: 1, recargoCuotas: 2000, canal: "whatsapp", fechaVenta: dias(12) },
+  { codigoProducto: "SEED-ANI-02", compradorCelular: "3001112233", cantidad: 1, medioPago: "cuotas", numCuotas: 1, frecuenciaCuotas: "mensual", canal: "whatsapp", fechaVenta: dias(12) },
   { codigoProducto: "SEED-MAN-02", cantidad: 1, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(9) },
   { codigoProducto: "SEED-ARE-01", compradorCelular: "3045556677", cantidad: 3, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(6) },
-  { codigoProducto: "SEED-OTR-01", compradorCelular: "3056667788", cantidad: 1, medioPago: "cuotas", numCuotas: 2, recargoCuotas: 5000, canal: "presencial", fechaVenta: dias(4) },
+  { codigoProducto: "SEED-OTR-01", compradorCelular: "3056667788", cantidad: 1, medioPago: "cuotas", numCuotas: 2, frecuenciaCuotas: "mensual", canal: "presencial", fechaVenta: dias(4) },
   { codigoProducto: "SEED-COL-02", cantidad: 1, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(2) },
 ];
 
@@ -95,6 +99,13 @@ async function main(): Promise<void> {
     console.log("Para reiniciar, borra primero con el comando de limpieza del mensaje de este script.");
     return;
   }
+
+  await prisma.configuracionApp.upsert({
+    where: { id: 1 },
+    update: { recargoCuotasGlobal: SEED_RECARGO_CUOTAS },
+    create: { id: 1, recargoCuotasGlobal: SEED_RECARGO_CUOTAS },
+  });
+  console.log(`Recargo por cuotas global fijado en ${SEED_RECARGO_CUOTAS}`);
 
   for (const p of PRODUCTOS) {
     await prisma.producto.create({ data: p });

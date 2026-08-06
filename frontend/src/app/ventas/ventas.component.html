@@ -13,6 +13,15 @@
     <div class="alert-ok">{{ exito() }}</div>
   }
 
+  <label class="comprador-nuevo-toggle">
+    <input
+      type="checkbox"
+      [checked]="esCompradorNuevo()"
+      (change)="toggleCompradorNuevo(!esCompradorNuevo())"
+    />
+    Es un cliente nuevo
+  </label>
+
   <form (ngSubmit)="registrar()">
     <div class="form-grid">
       <div class="field">
@@ -29,15 +38,26 @@
           }
         </select>
       </div>
-      <div class="field">
-        <label>Comprador (opcional)</label>
-        <select name="compradorCelular" [(ngModel)]="form.compradorCelular">
-          <option value="">Anonimo</option>
-          @for (c of compradores(); track c.celular) {
-            <option [value]="c.celular">{{ c.nombre }}</option>
-          }
-        </select>
-      </div>
+      @if (!esCompradorNuevo()) {
+        <div class="field">
+          <label>Comprador (opcional)</label>
+          <select name="compradorCelular" [(ngModel)]="form.compradorCelular">
+            <option value="">Anonimo</option>
+            @for (c of compradores(); track c.celular) {
+              <option [value]="c.celular">{{ c.nombre }}</option>
+            }
+          </select>
+        </div>
+      } @else {
+        <div class="field">
+          <label>Celular del cliente nuevo</label>
+          <input name="compradorNuevoCelular" [(ngModel)]="compradorNuevo.celular" placeholder="3001234567" required />
+        </div>
+        <div class="field">
+          <label>Nombre del cliente nuevo</label>
+          <input name="compradorNuevoNombre" [(ngModel)]="compradorNuevo.nombre" required />
+        </div>
+      }
       <div class="field">
         <label>Cantidad</label>
         <input
@@ -80,8 +100,22 @@
           </select>
         </div>
         <div class="field">
-          <label>Recargo por cuotas</label>
-          <input type="number" name="recargoCuotas" [(ngModel)]="form.recargoCuotas" min="0" />
+          <label>Frecuencia de cuotas</label>
+          <select name="frecuenciaCuotas" [(ngModel)]="form.frecuenciaCuotas">
+            <option value="semanal">Semanal</option>
+            <option value="quincenal">Quincenal</option>
+            <option value="mensual">Mensual</option>
+          </select>
+        </div>
+      }
+      @if (auth.esManagerOAdmin()) {
+        <div class="field">
+          <label>Vendedor</label>
+          <select name="vendedorId" [(ngModel)]="form.vendedorId">
+            @for (v of vendedores(); track v.id) {
+              <option [ngValue]="v.id">{{ v.nombre }} {{ v.apellido }}</option>
+            }
+          </select>
         </div>
       }
       <div class="field">
@@ -90,6 +124,87 @@
     </div>
   </form>
 </section>
+
+@if (editandoVentaId()) {
+  <section class="card" style="margin-top: 20px">
+    <h2>Editar venta #{{ editandoVentaId() }}</h2>
+
+    <form (ngSubmit)="guardarEdicionVenta()">
+      <div class="form-grid">
+        <div class="field">
+          <label>Comprador (opcional)</label>
+          <select name="compradorCelularEdicion" [(ngModel)]="formEdicion.compradorCelular">
+            <option value="">Anonimo</option>
+            @for (c of compradores(); track c.celular) {
+              <option [value]="c.celular">{{ c.nombre }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label>Cantidad</label>
+          <input type="number" name="cantidadEdicion" [(ngModel)]="formEdicion.cantidad" min="1" required />
+        </div>
+        <div class="field">
+          <label>Valor a cobrar</label>
+          <input type="number" name="valorContadoEdicion" [(ngModel)]="formEdicion.valorContado" min="0" required />
+        </div>
+        <div class="field">
+          <label>Canal</label>
+          <select name="canalEdicion" [(ngModel)]="formEdicion.canal">
+            <option value="whatsapp">WhatsApp</option>
+            <option value="presencial">Presencial</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Medio de pago</label>
+          <select name="medioPagoEdicion" [(ngModel)]="formEdicion.medioPago">
+            <option value="contado">Contado</option>
+            <option value="cuotas">Cuotas</option>
+          </select>
+        </div>
+        @if (formEdicion.medioPago === 'cuotas') {
+          <div class="field">
+            <label>N cuotas (max 3)</label>
+            <select name="numCuotasEdicion" [(ngModel)]="formEdicion.numCuotas">
+              <option [ngValue]="1">1</option>
+              <option [ngValue]="2">2</option>
+              <option [ngValue]="3">3</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Frecuencia de cuotas</label>
+            <select name="frecuenciaCuotasEdicion" [(ngModel)]="formEdicion.frecuenciaCuotas">
+              <option value="semanal">Semanal</option>
+              <option value="quincenal">Quincenal</option>
+              <option value="mensual">Mensual</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Recargo por cuotas</label>
+            <input type="number" name="recargoCuotasEdicion" [(ngModel)]="formEdicion.recargoCuotas" min="0" required />
+          </div>
+        }
+        @if (auth.esManagerOAdmin()) {
+          <div class="field">
+            <label>Vendedor</label>
+            <select name="vendedorIdEdicion" [(ngModel)]="formEdicion.vendedorId">
+              <option [ngValue]="null">Sin vendedor</option>
+              @for (v of vendedores(); track v.id) {
+                <option [ngValue]="v.id">{{ v.nombre }} {{ v.apellido }}</option>
+              }
+            </select>
+          </div>
+        }
+        <div class="field">
+          <button class="btn" type="submit" [disabled]="guardandoEdicion()">Guardar cambios</button>
+        </div>
+        <div class="field">
+          <button class="btn btn-secondary" type="button" (click)="cancelarEdicionVenta()">Cancelar</button>
+        </div>
+      </div>
+    </form>
+  </section>
+}
 
 <section class="card" style="margin-top: 20px">
   <h2>Ventas recientes</h2>
@@ -116,11 +231,16 @@
           <th class="num">Cant.</th>
           <th>Medio</th>
           <th class="num">Total</th>
-          <th class="num">Ganancia</th>
+          @if (auth.esManagerOAdmin()) {
+            <th class="num">Ganancia</th>
+          }
           <th>Canal</th>
           <th>Fecha</th>
           <th>Vendedor</th>
-          <th class="num">Comisión</th>
+          @if (auth.esManagerOAdmin()) {
+            <th class="num">Comisión</th>
+            <th></th>
+          }
         </tr>
       </thead>
       <tbody>
@@ -132,18 +252,27 @@
             <td class="num">{{ v.cantidad }}</td>
             <td>{{ v.medioPago }}{{ v.numCuotas ? ' (' + v.numCuotas + ')' : '' }}</td>
             <td class="num">{{ v.valorTotalVenta }}</td>
-            <td class="num">{{ v.ganancia }}</td>
+            @if (auth.esManagerOAdmin()) {
+              <td class="num">{{ v.ganancia }}</td>
+            }
             <td>{{ v.canal }}</td>
             <td>{{ v.fechaVenta | date: 'dd/MM/yyyy':'UTC' }}</td>
             <td>{{ v.vendedor ? v.vendedor.nombre + ' ' + v.vendedor.apellido : '—' }}</td>
-            <td class="num">
-              {{ v.comision }}
-              @if (v.vendedorId) {
-                <span class="badge" [class]="v.comisionEstado === 'liquidada' ? 'badge-pagada' : 'badge-pendiente'">
-                  {{ v.comisionEstado }}
-                </span>
-              }
-            </td>
+            @if (auth.esManagerOAdmin()) {
+              <td class="num">
+                {{ v.comision }}
+                @if (v.vendedorId) {
+                  <span class="badge" [class]="v.comisionEstado === 'liquidada' ? 'badge-pagada' : 'badge-pendiente'">
+                    {{ v.comisionEstado }}
+                  </span>
+                }
+              </td>
+              <td>
+                @if (puedeEditarVenta(v)) {
+                  <button class="btn btn-secondary" type="button" (click)="editarVenta(v)">Editar</button>
+                }
+              </td>
+            }
           </tr>
         }
       </tbody>

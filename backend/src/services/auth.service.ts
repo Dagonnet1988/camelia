@@ -18,6 +18,7 @@ export interface UsuarioPublico {
   apellido: string;
   rol: RolUsuario;
   debeCambiarPassword: boolean;
+  porcentajeComision: string;
 }
 
 interface UsuarioCompleto {
@@ -28,6 +29,7 @@ interface UsuarioCompleto {
   rol: RolUsuario;
   passwordHash: string;
   debeCambiarPassword: boolean;
+  porcentajeComision: unknown;
 }
 
 function aPublico(u: UsuarioCompleto): UsuarioPublico {
@@ -38,6 +40,7 @@ function aPublico(u: UsuarioCompleto): UsuarioPublico {
     apellido: u.apellido,
     rol: u.rol,
     debeCambiarPassword: u.debeCambiarPassword,
+    porcentajeComision: String(u.porcentajeComision),
   };
 }
 

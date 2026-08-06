@@ -1,24 +1,61 @@
 import { Router } from "express";
 import { z } from "zod";
+import { requireManagerOrAdmin } from "../lib/auth-middleware";
 import { asyncHandler } from "../lib/http";
 import { validateBody } from "../lib/validate";
 import * as ventasService from "../services/ventas.service";
+
+const compradorNuevoSchema = z.object({
+  nombre: z.string().min(1),
+});
 
 const registrarVentaSchema = z
   .object({
     codigoProducto: z.string().min(1),
     compradorCelular: z.string().min(1).optional(),
+    compradorNuevo: compradorNuevoSchema.optional(),
     cantidad: z.number().int().positive(),
     valorContado: z.number().nonnegative().optional(),
     medioPago: z.enum(["contado", "cuotas"]),
     numCuotas: z.number().int().min(1).max(3).optional(),
-    recargoCuotas: z.number().nonnegative().optional(),
+    frecuenciaCuotas: z.enum(["semanal", "quincenal", "mensual"]).optional(),
     canal: z.enum(["whatsapp", "presencial"]),
     fechaVenta: z.coerce.date().optional(),
+    vendedorId: z.number().int().positive().optional(),
   })
   .refine((data) => data.medioPago !== "cuotas" || data.numCuotas !== undefined, {
     message: "num_cuotas es requerido cuando medio_pago es cuotas",
     path: ["numCuotas"],
+  })
+  .refine((data) => data.medioPago !== "cuotas" || data.frecuenciaCuotas !== undefined, {
+    message: "frecuencia_cuotas es requerida cuando medio_pago es cuotas",
+    path: ["frecuenciaCuotas"],
+  });
+
+const actualizarVentaSchema = z
+  .object({
+    compradorCelular: z.string().min(1).optional(),
+    compradorNuevo: compradorNuevoSchema.optional(),
+    cantidad: z.number().int().positive(),
+    valorContado: z.number().nonnegative(),
+    medioPago: z.enum(["contado", "cuotas"]),
+    numCuotas: z.number().int().min(1).max(3).optional(),
+    frecuenciaCuotas: z.enum(["semanal", "quincenal", "mensual"]).optional(),
+    recargoCuotas: z.number().nonnegative().optional(),
+    canal: z.enum(["whatsapp", "presencial"]),
+    vendedorId: z.number().int().positive().optional(),
+  })
+  .refine((data) => data.medioPago !== "cuotas" || data.numCuotas !== undefined, {
+    message: "num_cuotas es requerido cuando medio_pago es cuotas",
+    path: ["numCuotas"],
+  })
+  .refine((data) => data.medioPago !== "cuotas" || data.frecuenciaCuotas !== undefined, {
+    message: "frecuencia_cuotas es requerida cuando medio_pago es cuotas",
+    path: ["frecuenciaCuotas"],
+  })
+  .refine((data) => data.medioPago !== "cuotas" || data.recargoCuotas !== undefined, {
+    message: "recargo_cuotas es requerido cuando medio_pago es cuotas",
+    path: ["recargoCuotas"],
   });
 
 export const ventasRouter = Router();
@@ -54,7 +91,21 @@ ventasRouter.post(
   "/",
   validateBody(registrarVentaSchema),
   asyncHandler(async (req, res) => {
-    const venta = await ventasService.registrarVenta({ ...req.body, vendedorId: req.usuario?.id });
+    // Solo admin/manager pueden asignar la venta a otro vendedor; un 'user' siempre queda
+    // registrado a su propio nombre sin importar lo que mande el cliente (evita falsearlo).
+    const puedeElegirVendedor = req.usuario!.rol === "admin" || req.usuario!.rol === "manager";
+    const vendedorId = puedeElegirVendedor && req.body.vendedorId ? req.body.vendedorId : req.usuario!.id;
+    const venta = await ventasService.registrarVenta({ ...req.body, vendedorId });
     res.status(201).json(venta);
+  }),
+);
+
+ventasRouter.put(
+  "/:id",
+  requireManagerOrAdmin,
+  validateBody(actualizarVentaSchema),
+  asyncHandler(async (req, res) => {
+    const venta = await ventasService.actualizarVenta(Number(req.params["id"]), req.body);
+    res.json(venta);
   }),
 );

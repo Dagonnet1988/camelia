@@ -2,6 +2,7 @@ export type Categoria = 'arete' | 'anillo' | 'manilla' | 'collar' | 'otro';
 export type MedioPago = 'contado' | 'cuotas';
 export type Canal = 'whatsapp' | 'presencial';
 export type EstadoCuota = 'pendiente' | 'pagada' | 'atrasada';
+export type FrecuenciaCuotas = 'semanal' | 'quincenal' | 'mensual';
 
 export interface FotoProducto {
   id: number;
@@ -99,6 +100,7 @@ export interface Venta {
   valorContado: string;
   medioPago: MedioPago;
   numCuotas: number | null;
+  frecuenciaCuotas: FrecuenciaCuotas | null;
   recargoCuotas: string | null;
   valorTotalVenta: string;
   costoPromedioAlMomento: string;
@@ -142,13 +144,36 @@ export interface Liquidacion {
   generadaPor: { nombre: string; apellido: string };
 }
 
+export interface CompradorNuevoInput {
+  nombre: string;
+}
+
 export interface RegistrarVentaInput {
   codigoProducto: string;
   compradorCelular?: string;
+  compradorNuevo?: CompradorNuevoInput;
   cantidad: number;
   valorContado?: number;
   medioPago: MedioPago;
   numCuotas?: number;
+  frecuenciaCuotas?: FrecuenciaCuotas;
+  canal: Canal;
+  vendedorId?: number;
+}
+
+export interface ActualizarVentaInput {
+  compradorCelular?: string;
+  compradorNuevo?: CompradorNuevoInput;
+  cantidad: number;
+  valorContado: number;
+  medioPago: MedioPago;
+  numCuotas?: number;
+  frecuenciaCuotas?: FrecuenciaCuotas;
   recargoCuotas?: number;
   canal: Canal;
+  vendedorId?: number;
+}
+
+export interface ConfiguracionComisiones {
+  recargoCuotasGlobal: string;
 }

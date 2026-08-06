@@ -7,6 +7,7 @@ export interface UsuarioSesion {
   apellido: string;
   rol: RolUsuario;
   debeCambiarPassword: boolean;
+  porcentajeComision: string;
 }
 
 export interface Usuario {

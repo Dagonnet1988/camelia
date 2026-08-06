@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import type { RegistrarVentaInput, Venta } from '../models/domain.models';
+import type { ActualizarVentaInput, RegistrarVentaInput, Venta } from '../models/domain.models';
 
 const BASE = '/api/ventas';
 
@@ -15,5 +15,9 @@ export class VentasService {
 
   registrar(input: RegistrarVentaInput) {
     return this.http.post<Venta>(BASE, input);
+  }
+
+  actualizar(id: number, input: ActualizarVentaInput) {
+    return this.http.put<Venta>(`${BASE}/${id}`, input);
   }
 }

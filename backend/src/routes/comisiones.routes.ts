@@ -1,9 +1,31 @@
 import { Router } from "express";
+import { z } from "zod";
 import { asyncHandler } from "../lib/http";
 import { generarPdfLiquidacion } from "../lib/pdf-liquidacion";
+import { actualizarConfiguracion, obtenerConfiguracion } from "../services/configuracion.service";
+import { validateBody } from "../lib/validate";
 import * as comisionesService from "../services/comisiones.service";
 
+const configuracionSchema = z.object({
+  recargoCuotasGlobal: z.number().nonnegative(),
+});
+
 export const comisionesRouter = Router();
+
+comisionesRouter.get(
+  "/configuracion",
+  asyncHandler(async (_req, res) => {
+    res.json(await obtenerConfiguracion());
+  }),
+);
+
+comisionesRouter.put(
+  "/configuracion",
+  validateBody(configuracionSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await actualizarConfiguracion(req.body));
+  }),
+);
 
 comisionesRouter.get(
   "/vendedores",

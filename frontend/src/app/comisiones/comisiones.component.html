@@ -11,6 +11,24 @@
 }
 
 <section class="card">
+  <h2>Recargo por cuotas (global)</h2>
+  <p class="hint">
+    Valor extra que se cobra en toda venta a cuotas, sin importar quien la registre.
+  </p>
+  <div class="form-grid">
+    <div class="field">
+      <label>Recargo por cuotas</label>
+      <input type="number" name="recargoCuotasGlobal" [(ngModel)]="recargoCuotasGlobal" min="0" />
+    </div>
+    <div class="field">
+      <button class="btn" type="button" [disabled]="guardandoRecargo()" (click)="guardarRecargo()">
+        Guardar
+      </button>
+    </div>
+  </div>
+</section>
+
+<section class="card" style="margin-top: 20px">
   <h2>Comisiones pendientes</h2>
   @if (resumen().length === 0) {
     <p class="callout">No hay comisiones pendientes por liquidar.</p>

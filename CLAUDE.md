@@ -52,7 +52,12 @@ Al insertar una compra:
 - valor_contado (decimal, = valor_venta del producto al momento × cantidad, antes de cualquier recargo)
 - medio_pago (enum: 'contado', 'cuotas')
 - num_cuotas (int, nullable — solo si medio_pago = 'cuotas'; máximo 3)
-- recargo_cuotas (decimal, nullable — valor extra cobrado por financiar)
+- frecuencia_cuotas (enum: 'semanal', 'quincenal', 'mensual'; nullable — solo si medio_pago =
+  'cuotas'. Agregado 2026-08-06, define cada cuántos días vence cada cuota — 7/15/30
+  respectivamente.)
+- recargo_cuotas (decimal, nullable — valor extra cobrado por financiar. Al registrar la venta
+  se toma de `configuracion_app.recargo_cuotas_global` (ajustable desde Comisiones); al editar
+  una venta ya creada, se puede ajustar manualmente para esa venta puntual sin afectar el global.)
 - valor_total_venta (decimal, = valor_contado + recargo_cuotas)
 - costo_promedio_al_momento (decimal, copiado de productos.costo_promedio al momento de la venta, para que la ganancia histórica no se distorsione con recálculos futuros)
 - ganancia (decimal, = valor_total_venta - (costo_promedio_al_momento × cantidad))
@@ -272,12 +277,11 @@ módulo aparte, sino vivir dentro de la página de WhatsApp. Se eliminó la ruta
 Difusión no cambió su lógica interna, solo se le quitó el `<header>` de página propia (ya no es
 standalone) y su `:host` dejó de fijar `max-width`/`padding` (hereda el contenedor de WhatsApp).
 
-### Catálogo (ex-Productos) alimentado desde Compras — COMPLETO (2026-08-02)
+### Productos (ex-"Catálogo") alimentado desde Compras — COMPLETO (2026-08-02)
 
 Pedido explícito del usuario: "Productos" sobraba como módulo separado de creación manual — un
 producto nuevo debería darse de alta automáticamente al registrar su primera Compra, no en un
-formulario aparte. La página se renombró a "Catálogo" y quedó de solo-lectura/edición (sin
-creación manual):
+formulario aparte. La página quedó de solo-lectura/edición (sin creación manual):
 
 - `backend/src/services/compras.service.ts`: `registrarCompra` acepta un `productoNuevo?`
   opcional (`{ nombre, categoria, valorVenta, stockMinimo? }`). Si `codigoProducto` no existe en
@@ -286,11 +290,19 @@ creación manual):
   `productoNuevo`, error 404 pidiendo incluirlo.
 - Frontend Compras: checkbox "Es un producto nuevo" que alterna entre el `<select>` de productos
   existentes y un formulario inline (código/nombre/categoría/precio/stock mínimo).
-- Frontend Catálogo (`productos.component.*`): sin formulario de creación. Edición y borrado
+- Frontend Productos (`productos.component.*`): sin formulario de creación. Edición y borrado
   (Editar/Eliminar) solo visibles/habilitados si `auth.esManagerOAdmin()` — el `user` restringido
   ve la tabla pero no puede modificarla desde ahí (coherente con que el backend ya lo bloquea).
 - `backend/src/lib/constantes.ts`: `CATEGORIAS_PRODUCTO` extraído a constante compartida entre
   las rutas de productos y compras (evita duplicar el enum de categorías).
+- **Ajuste 2026-08-06:** el usuario pidió revertir el nombre de la página de "Catálogo" a
+  "Productos" (nav y `<h1>`) — la ruta sigue siendo `/productos`, solo cambió la etiqueta visible.
+  También se quitó la columna "Costo prom." de la tabla (dato interno sensible, visible incluso
+  para el rol `user`) y se agregó una columna "Comisión" que calcula, para **quien esté
+  logueado**, cuánto ganaría de comisión por ese producto (`valorVenta × usuario.porcentajeComision
+  / 100`, usando el propio `%` del usuario en sesión — no el de otro vendedor). Requirió exponer
+  `porcentajeComision` en `UsuarioPublico`/`UsuarioSesion` (antes solo viajaba en el detalle del
+  módulo Usuarios), así que ahora también viaja en `/api/auth/me` y en la respuesta de login.
 
 ### Catálogo público tipo marketplace — COMPLETO (2026-08-02)
 
@@ -401,6 +413,53 @@ comisión se calcula sobre el valor total de la venta (`valor_total_venta`), no 
   funcionando → en Comisiones aparece el resumen pendiente → "Ver detalle" muestra la venta →
   "Liquidar" genera la liquidación y la mueve al historial → "Descargar PDF" abre un PDF con el
   membrete Camelia, la tabla de ventas liquidadas y el total — contenido verificado directamente.
+
+### Ajustes a Ventas: vendedor asignable, edición, cliente nuevo, cuotas — COMPLETO (2026-08-06)
+
+Varios ajustes pedidos sobre la marcha tras usar el módulo de comisiones y de cuotas en la
+práctica:
+
+- **Cliente nuevo desde Ventas:** igual que Compras con productos, el campo comprador ahora
+  tiene un checkbox "Es un cliente nuevo" que revela celular+nombre inline en vez de exigir
+  crearlo antes desde Compradores. `ventasService.registrarVenta`/`actualizarVenta` reciben
+  `compradorNuevo?: { nombre }` y lo crean dentro de la misma transacción si el celular no
+  existe (mismo patrón que `productoNuevo` en compras).
+- **Vendedor asignable por manager/admin:** al registrar (o editar) una venta, manager/admin ven
+  un selector "Vendedor" (poblado con `GET /api/comisiones/vendedores`) para asignarla a
+  cualquier usuario — por defecto viene pre-seleccionado el propio usuario en sesión. El backend
+  solo respeta ese `vendedorId` del body si `req.usuario.rol` es `admin`/`manager`; para `user`
+  siempre se fuerza a `req.usuario.id` sin importar lo que mande el cliente (no se puede
+  falsear). El rol `user` no ve el selector — su venta siempre queda a su propio nombre.
+- **Edición de ventas (manager/admin):** `PUT /api/ventas/:id` (`requireManagerOrAdmin`) permite
+  corregir comprador, cantidad, valor, medio de pago, canal y vendedor de una venta ya
+  registrada. Recalcula stock (revierte la cantidad anterior y aplica la nueva, validando
+  disponibilidad), ganancia (conservando el `costo_promedio_al_momento` original — nunca se
+  recalcula con el costo actual del producto) y comisión (con el % del vendedor vigente al
+  momento de editar). Bloqueada con 400 si la venta ya fue liquidada o si alguna de sus cuotas
+  ya está pagada — evita descuadrar una liquidación ya generada o un pago ya cobrado. El
+  frontend (`ventas.component`) oculta el botón "Editar" en esos casos (`puedeEditarVenta()`) en
+  vez de dejar que el usuario choque con el error.
+- **Recargo por cuotas — global con ajuste puntual:** se quitó el campo "Recargo por cuotas" del
+  formulario de *nueva* venta — ahora se registra automáticamente el valor global configurado en
+  `configuracion_app.recargo_cuotas_global` (editable desde una tarjeta nueva en el módulo
+  Comisiones, `GET/PUT /api/comisiones/configuracion`, mismo patrón que la config de WhatsApp).
+  Al *editar* una venta a cuotas sí aparece el campo recargo, editable puntualmente para esa
+  venta sin tocar el valor global ni afectar otras ventas.
+- **Frecuencia de cuotas:** nuevo campo `frecuencia_cuotas` (semanal/quincenal/mensual,
+  7/15/30 días entre cuotas respectivamente) seleccionable al registrar o editar una venta a
+  cuotas — reemplaza el `DIAS_ENTRE_CUOTAS = 30` fijo que había antes.
+- **Redondeo de cuotas:** decisión explícita del usuario — cada cuota (salvo la última) se
+  redondea a la centena más cercana (`Prisma.Decimal.toNearest(100)`) en vez de dejar centavos
+  exactos de la división; la última cuota sigue absorbiendo la diferencia de redondeo para que
+  la suma de todas las cuotas cuadre exacto con `valor_total_venta`.
+- **Cuotas pendientes — solo la próxima por venta:** en la tabla "Cuotas pendientes" de Ventas,
+  antes se veían 1/3, 2/3 y 3/3 de una misma venta a la vez. Ajuste explícito del usuario: ahora
+  solo se muestra la cuota más próxima sin pagar de cada venta; al marcarla pagada, la siguiente
+  aparece sola. Es un filtro **solo de esa tabla en el frontend** (`cargarCuotasPendientes()`
+  se queda con la primera cuota no pagada por `idVenta`, ya que el listado del backend viene
+  ordenado por `fecha_vencimiento` asc) — no se tocó el backend ni las métricas de cartera del
+  dashboard, que sí necesitan ver todas las cuotas pendientes/atrasadas para calcular el total
+  real por cobrar.
 
 ### Identidad de marca — COMPLETO (2026-08-02)
 

@@ -1,6 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import type { Liquidacion, ResumenComisionVendedor, Vendedor, VentaPendienteComision } from '../models/domain.models';
+import type {
+  ConfiguracionComisiones,
+  Liquidacion,
+  ResumenComisionVendedor,
+  Vendedor,
+  VentaPendienteComision,
+} from '../models/domain.models';
 
 const BASE = '/api/comisiones';
 
@@ -10,6 +16,14 @@ export class ComisionesService {
 
   vendedores() {
     return this.http.get<Vendedor[]>(`${BASE}/vendedores`);
+  }
+
+  configuracion() {
+    return this.http.get<ConfiguracionComisiones>(`${BASE}/configuracion`);
+  }
+
+  actualizarConfiguracion(recargoCuotasGlobal: number) {
+    return this.http.put<ConfiguracionComisiones>(`${BASE}/configuracion`, { recargoCuotasGlobal });
   }
 
   resumen() {

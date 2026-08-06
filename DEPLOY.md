@@ -109,6 +109,29 @@ comando explícitamente — si te saltas este paso, el backend arranca con
 `Error: Cannot find module '../generated/prisma/client'` en los logs de
 PM2. `npm run build` compila TypeScript a `dist/`.
 
+> **Dos bugs reales encontrados en el primer despliegue** (ya corregidos en
+> el repo, solo asegúrate de tener el código actualizado con `git pull`
+> antes de este paso si clonaste antes del commit `2ba7eed`):
+>
+> 1. El generador de Prisma (`provider = "prisma-client"`) sin
+>    `moduleFormat` explícito emite código ESM (`import.meta.url`) aunque
+>    el backend es `"type": "commonjs"`. `tsx` (usado en dev) lo tolera vía
+>    su propio loader, pero `node` puro — lo que PM2 realmente ejecuta —
+>    revienta con `SyntaxError: Cannot use 'import.meta' outside a module`.
+>    Se agregó `moduleFormat = "cjs"` al `generator client` de
+>    `schema.prisma`.
+> 2. `tsc` solo compila los `.ts` propios del proyecto — nunca copia
+>    `src/generated/prisma/` (la salida de `prisma generate`) a `dist/`. El
+>    `require("../generated/prisma/client")` compilado en
+>    `dist/lib/prisma.js` apuntaba a un `dist/generated/prisma/` que nunca
+>    existió. El script `build` en `package.json` ahora copia esa carpeta a
+>    `dist/generated/prisma` después de `tsc`.
+>
+> Ambos se manifiestan **solo** al correr el build compilado (`node
+> dist/index.js`, como hace PM2) — nunca aparecen en `npm run dev` porque
+> `tsx` corre el TypeScript directo desde `src/`. Verificado localmente
+> corriendo `node dist/index.js` sin intermediarios.
+
 ## 5. Backend: usuario admin inicial
 
 ```bash

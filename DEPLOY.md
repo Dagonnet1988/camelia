@@ -44,6 +44,25 @@ GRANT ALL PRIVILEGES ON DATABASE bisuteria_db TO camelia_user;
 
 Guarda esa contraseña — la necesitas para el `.env` del paso 3.
 
+> **Lección del primer despliegue:** si necesitas cambiar la contraseña después
+> (`ALTER USER camelia_user WITH PASSWORD '...'` vía `psql -c "..."`), ten
+> cuidado — si la contraseña tiene un carácter especial de shell (`$`, `` ` ``,
+> `!`, etc.), bash puede interpretarlo *antes* de que psql lo vea, guardando
+> una contraseña distinta a la que escribiste, aunque el `.env` tenga la
+> correcta. Esto se manifiesta como `password authentication failed` en
+> `prisma migrate deploy` incluso con el `.env` "bien". La forma segura de
+> fijar/cambiar la contraseña es **interactiva**, sin pasar por el shell:
+>
+> ```bash
+> sudo -u postgres psql
+> ```
+>
+> y ya dentro:
+>
+> ```sql
+> \password camelia_user
+> ```
+
 ## 2. Clonar el repositorio
 
 ```bash

@@ -1,4 +1,8 @@
-import "dotenv/config";
+// override: true porque el proceso puede heredar variables (ej. PORT) del entorno de PM2/la
+// shell del servidor (compartido con otros proyectos como Ramelo) - el .env propio de Camelia
+// siempre debe ganar sobre lo heredado, no al reves (comportamiento por defecto de dotenv).
+import dotenv from "dotenv";
+dotenv.config({ override: true });
 import path from "node:path";
 import cookieParser from "cookie-parser";
 import express from "express";

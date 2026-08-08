@@ -242,13 +242,13 @@ server {
         try_files $uri =404;
     }
 
-    location ~* \.(?:js|css|woff2?|png|jpe?g|webp|svg|ico)$ {
-        expires 30d;
-        add_header Cache-Control "public, max-age=2592000, immutable" always;
-        try_files $uri =404;
-    }
-
-    location /api/ {
+    # ^~ es obligatorio aqui: sin el, un location de prefijo simple pierde contra
+    # cualquier location por regex (como el de extensiones .js/.css/.png de abajo) sin
+    # importar el orden en el archivo. Sin ^~, una foto en /uploads/productos/x.png
+    # cae en el bloque de regex de assets estaticos (que busca el archivo dentro de
+    # dist/frontend/browser, donde no existe) en vez de proxearse al backend -> 404
+    # aunque el archivo si exista en disco. Mismo motivo para /api/.
+    location ^~ /api/ {
         proxy_pass http://127.0.0.1:4000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -257,9 +257,15 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location /uploads/ {
+    location ^~ /uploads/ {
         proxy_pass http://127.0.0.1:4000;
         proxy_set_header Host $host;
+    }
+
+    location ~* \.(?:js|css|woff2?|png|jpe?g|webp|svg|ico)$ {
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000, immutable" always;
+        try_files $uri =404;
     }
 
     location / {
@@ -278,6 +284,19 @@ sudo systemctl reload nginx
 
 `nginx -t` valida la sintaxis antes de recargar — si falla, Nginx sigue
 sirviendo Ramelo sin interrupción hasta que se corrija.
+
+> **Bug real encontrado en producción:** las fotos de productos daban 404
+> aunque el archivo existía en disco y la URL pedida por el navegador era
+> exactamente correcta (`/uploads/productos/<uuid>.png`). Causa: en Nginx,
+> un `location` por **regex** (`~*`) siempre le gana a un `location` de
+> **prefijo simple** (`/uploads/`) sin importar el orden en que aparecen en
+> el archivo — así que cualquier URL terminada en `.png`/`.jpg`/etc caía en
+> el bloque de cache de assets estáticos (que busca el archivo dentro de
+> `dist/frontend/browser/`, donde nunca existió) en vez de proxearse al
+> backend. El modificador `^~` en `/api/` y `/uploads/` fuerza a Nginx a
+> usar esos bloques de una vez, sin evaluar los regex. Este es el bug real
+> que corrigió el catálogo en producción — la config de arriba ya lo
+> incluye.
 
 **Verifica que el certificado wildcard realmente cubra el subdominio** antes
 de dar esto por hecho:

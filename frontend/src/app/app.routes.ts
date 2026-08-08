@@ -20,7 +20,7 @@ export const routes: Routes = [
   { path: 'cambiar-password', component: CambiarPasswordComponent, canActivate: [soloAutenticadoGuard] },
   { path: 'dashboard', component: DashboardComponent, canActivate: [managerGuard] },
   { path: 'productos', component: ProductosComponent, canActivate: [authGuard] },
-  { path: 'compras', component: ComprasComponent, canActivate: [managerGuard] },
+  { path: 'compras', component: ComprasComponent, canActivate: [authGuard] },
   { path: 'comisiones', component: ComisionesComponent, canActivate: [managerGuard] },
   { path: 'compradores', component: CompradoresComponent, canActivate: [authGuard] },
   { path: 'ventas', component: VentasComponent, canActivate: [authGuard] },

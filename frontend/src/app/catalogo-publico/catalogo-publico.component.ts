@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, HostListener, OnInit, computed, signal } from '@angular/core';
 import type { Categoria, ProductoPublico } from '../models/domain.models';
 import { PublicoService } from '../services/publico.service';
 
@@ -58,5 +58,31 @@ export class CatalogoPublicoComponent implements OnInit {
   moverFoto(carrusel: HTMLElement, delta: number, codigo: string, totalFotos: number): void {
     const siguiente = Math.max(0, Math.min(totalFotos - 1, this.indiceActivo(codigo) + delta));
     this.irAFoto(carrusel, siguiente);
+  }
+
+  productoLightbox = signal<ProductoPublico | null>(null);
+  indiceLightbox = signal(0);
+
+  abrirLightbox(p: ProductoPublico, indiceInicial: number): void {
+    this.productoLightbox.set(p);
+    this.indiceLightbox.set(indiceInicial);
+  }
+
+  cerrarLightbox(): void {
+    this.productoLightbox.set(null);
+  }
+
+  moverLightbox(delta: number): void {
+    const p = this.productoLightbox();
+    if (!p) return;
+    this.indiceLightbox.update((i) => Math.max(0, Math.min(p.fotos.length - 1, i + delta)));
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(event: KeyboardEvent): void {
+    if (!this.productoLightbox()) return;
+    if (event.key === 'Escape') this.cerrarLightbox();
+    if (event.key === 'ArrowLeft') this.moverLightbox(-1);
+    if (event.key === 'ArrowRight') this.moverLightbox(1);
   }
 }

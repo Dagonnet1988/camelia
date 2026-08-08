@@ -52,6 +52,7 @@ model Producto {
   stockActual   Int               @default(0) @map("stock_actual")
   stockMinimo   Int               @default(0) @map("stock_minimo")
   fechaIngreso  DateTime          @default(now()) @map("fecha_ingreso")
+  proveedor     String?
 
   compras CompraInventario[]
   ventas  Venta[]

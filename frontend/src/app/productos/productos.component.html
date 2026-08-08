@@ -44,6 +44,10 @@
           <input type="number" name="stockMinimo" [(ngModel)]="form.stockMinimo" min="0" />
         </div>
         <div class="field">
+          <label>Proveedor</label>
+          <input name="proveedor" [(ngModel)]="form.proveedor" placeholder="Opcional" />
+        </div>
+        <div class="field">
           <button class="btn" type="submit" [disabled]="guardando()">Guardar cambios</button>
         </div>
         <div class="field">
@@ -100,7 +104,7 @@
           <th class="num">Comisión</th>
           <th class="num">Stock</th>
           <th class="num">Stock min.</th>
-          @if (puedeEditar) {
+          @if (puedeEditar || puedeEliminar) {
             <th></th>
           }
         </tr>
@@ -120,10 +124,14 @@
               }
             </td>
             <td class="num">{{ p.stockMinimo }}</td>
-            @if (puedeEditar) {
+            @if (puedeEditar || puedeEliminar) {
               <td>
-                <button class="btn btn-secondary" type="button" (click)="editar(p)">Editar</button>
-                <button class="btn btn-danger" type="button" (click)="eliminar(p)">Eliminar</button>
+                @if (puedeEditar) {
+                  <button class="btn btn-secondary" type="button" (click)="editar(p)">Editar</button>
+                }
+                @if (puedeEliminar) {
+                  <button class="btn btn-danger" type="button" (click)="eliminar(p)">Eliminar</button>
+                }
               </td>
             }
           </tr>

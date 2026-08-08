@@ -18,6 +18,7 @@ export interface ActualizarProductoInput {
   categoria?: CategoriaProducto;
   valorVenta?: number;
   stockMinimo?: number;
+  proveedor?: string;
 }
 
 export function listarProductos() {

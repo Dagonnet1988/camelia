@@ -26,9 +26,9 @@
         <div class="foto-wrapper">
           <div class="foto-carrusel" #carrusel (scroll)="onScrollFotos($event, p.codigo)">
             @if (p.fotos.length > 0) {
-              @for (f of p.fotos; track f.url) {
+              @for (f of p.fotos; track f.url; let i = $index) {
                 <div class="foto-slide">
-                  <img [src]="f.url" [alt]="p.nombre" loading="lazy" />
+                  <img [src]="f.url" [alt]="p.nombre" loading="lazy" (click)="abrirLightbox(p, i)" />
                 </div>
               }
             } @else {
@@ -74,5 +74,34 @@
         </div>
       </article>
     }
+  </div>
+}
+
+@if (productoLightbox(); as lb) {
+  <div class="lightbox-backdrop" (click)="cerrarLightbox()">
+    <button class="lightbox-cerrar" type="button" (click)="cerrarLightbox()" aria-label="Cerrar">×</button>
+    <div class="lightbox-contenido" (click)="$event.stopPropagation()">
+      <img [src]="lb.fotos[indiceLightbox()].url" [alt]="lb.nombre" class="lightbox-imagen" />
+      @if (lb.fotos.length > 1) {
+        <button class="lightbox-flecha lightbox-flecha-prev" type="button" (click)="moverLightbox(-1)" aria-label="Foto anterior">
+          ‹
+        </button>
+        <button class="lightbox-flecha lightbox-flecha-next" type="button" (click)="moverLightbox(1)" aria-label="Foto siguiente">
+          ›
+        </button>
+        <div class="lightbox-puntos">
+          @for (f of lb.fotos; track f.url; let i = $index) {
+            <button
+              class="punto"
+              type="button"
+              [class.activo]="indiceLightbox() === i"
+              (click)="indiceLightbox.set(i)"
+              [attr.aria-label]="'Ir a foto ' + (i + 1)"
+            ></button>
+          }
+        </div>
+      }
+      <p class="lightbox-nombre">{{ lb.nombre }}</p>
+    </div>
   </div>
 }

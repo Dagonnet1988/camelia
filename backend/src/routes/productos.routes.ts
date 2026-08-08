@@ -20,6 +20,7 @@ const actualizarProductoSchema = z.object({
   categoria: z.enum(CATEGORIAS_PRODUCTO).optional(),
   valorVenta: z.number().positive().optional(),
   stockMinimo: z.number().int().nonnegative().optional(),
+  proveedor: z.string().optional(),
 });
 
 export const productosRouter = Router();
@@ -57,7 +58,8 @@ productosRouter.post(
 
 productosRouter.put(
   "/:codigo",
-  requireManagerOrAdmin,
+  // Editar productos esta abierto a los 3 roles (pedido explicito del usuario) - crear y
+  // eliminar productos directamente siguen restringidos a manager/admin.
   validateBody(actualizarProductoSchema),
   asyncHandler(async (req, res) => {
     const producto = await productosService.actualizarProducto(req.params["codigo"] as string, req.body);
@@ -76,7 +78,6 @@ productosRouter.delete(
 
 productosRouter.post(
   "/:codigo/fotos",
-  requireManagerOrAdmin,
   uploadFotoProducto.array("fotos", 8),
   asyncHandler(async (req, res) => {
     const archivos = req.files as Express.Multer.File[] | undefined;
@@ -88,7 +89,6 @@ productosRouter.post(
 
 productosRouter.delete(
   "/:codigo/fotos/:fotoId",
-  requireManagerOrAdmin,
   asyncHandler(async (req, res) => {
     await productosService.eliminarFoto(req.params["codigo"] as string, Number(req.params["fotoId"]));
     res.status(204).send();

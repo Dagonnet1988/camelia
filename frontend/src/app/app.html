@@ -17,8 +17,8 @@
         <a routerLink="/dashboard" routerLinkActive="active" (click)="menuAbierto.set(false)">Dashboard</a>
       }
       <a routerLink="/productos" routerLinkActive="active" (click)="menuAbierto.set(false)">Productos</a>
+      <a routerLink="/compras" routerLinkActive="active" (click)="menuAbierto.set(false)">Compras</a>
       @if (u.rol === 'admin' || u.rol === 'manager') {
-        <a routerLink="/compras" routerLinkActive="active" (click)="menuAbierto.set(false)">Compras</a>
         <a routerLink="/comisiones" routerLinkActive="active" (click)="menuAbierto.set(false)">Comisiones</a>
       }
       <a routerLink="/compradores" routerLinkActive="active" (click)="menuAbierto.set(false)">Compradores</a>

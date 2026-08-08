@@ -25,6 +25,8 @@ usuarios es suficiente). **Login implementado (2026-08-01)** — ver modelo
 - stock_actual (int)
 - stock_minimo (int, para alertas de reabastecimiento)
 - fecha_ingreso (date, cuando se creó el SKU por primera vez)
+- proveedor (string, opcional, agregado 2026-08-08 — dato propio del producto, editable desde
+  Productos; distinto del `proveedor` de `compras_inventario`, que es histórico por compra)
 
 ### compras_inventario (refill de stock)
 - id (PK)
@@ -153,16 +155,11 @@ Al insertar una compra:
 
 ## Backlog / Módulos futuros (no implementados aún)
 
-**Estado (actualizado 2026-08-02):** el módulo de WhatsApp (conexión, recordatorios, límites,
-historial, envíos masivos, ahora con Difusión integrada en la misma página), el login con 3
-roles, el Catálogo interno (ex-Productos, alimentado desde Compras), el reset de contraseña, la
-identidad de marca (favicon + logo en login/nav), el diseño responsive de toda la app, el
-**catálogo público tipo marketplace** (página principal `/`, sin login, con fotos deslizables y
-zoom al pasar el cursor), y el **módulo de comisiones de vendedores** (registro de quién hizo
-cada venta, % de comisión ajustable por admin, liquidación de pagos y factura en PDF) están
-completos y probados. Queda por hacer:
-
-1. Despliegue (systemd/pm2 + Nginx en el Contabo).
+**Estado (actualizado 2026-08-08):** el módulo de WhatsApp, el login con 3 roles, el Catálogo
+interno, el catálogo público tipo marketplace, el módulo de comisiones de vendedores, y el
+**despliegue a producción** (`camelia.ramelo.app`, en el mismo VPS Contabo que Ramelo — ver
+`DEPLOY.md`) están completos. La app está **en producción y en uso real**. No hay pendientes
+de infraestructura; el backlog restante es de producto (ver secciones más recientes abajo).
 
 ### Diseño responsive — COMPLETO (2026-08-01)
 
@@ -461,6 +458,26 @@ práctica:
   dashboard, que sí necesitan ver todas las cuotas pendientes/atrasadas para calcular el total
   real por cobrar.
 
+### Compras y edición de productos abiertas a todos los roles, proveedor, lightbox — COMPLETO (2026-08-08)
+
+Pedido explícito del usuario, ya con la app en producción:
+
+- **Compras y edición de productos ya no son exclusivos de manager/admin** — el rol `user`
+  restringido ahora también puede registrar compras (`/api/compras` pasó de
+  `requireManagerOrAdmin` a solo `requireAuth`) y editar productos existentes, incluyendo
+  gestionar sus fotos (`PUT /api/productos/:codigo`, `POST/DELETE .../fotos` ya no llevan
+  `requireManagerOrAdmin`). **Crear un producto directamente (sin pasar por Compras) y
+  eliminarlo siguen restringidos a manager/admin** — no se tocó ese endpoint. En el frontend,
+  `ProductosComponent` separa `puedeEditar` (ahora `true` para los 3 roles) de `puedeEliminar`
+  (sigue `esManagerOAdmin()`), mostrando/ocultando los botones Editar y Eliminar por separado.
+- **Campo `proveedor` en `productos`** (nuevo, opcional) — a diferencia del `proveedor` de
+  `compras_inventario` (que es histórico, por cada compra individual), este es un dato propio
+  del producto, editable desde el formulario de edición en Productos.
+- **Lightbox en el catálogo público:** al hacer clic en una foto dentro del carrusel de una
+  tarjeta, se abre una superposición a pantalla completa con la foto en grande, flechas/puntos
+  de navegación si hay varias fotos, y se cierra con el botón ×, clic en el fondo, o `Escape`
+  (`@HostListener('document:keydown', ...)` en `catalogo-publico.component.ts`).
+
 ### Identidad de marca — COMPLETO (2026-08-02)
 
 Assets de marca ya existentes en `frontend/public/brand/files/` (logo maestro, monograma,
@@ -493,9 +510,36 @@ ImageMagick disponible — `pip3 install Pillow`).
   - Nav principal (`app.html`): monograma pequeño en `.nav-logo`, reemplaza el texto plano
     `<span class="brand">Camelia</span>`.
 
-### Despliegue
+### Despliegue — COMPLETO (2026-08-08)
 
-Configuración systemd/pm2 + bloque Nginx para el subdominio en el servidor Contabo (sin Docker, mismo patrón que Ramelo). Pendiente.
+En producción en `https://camelia.ramelo.app`, mismo VPS Contabo que Ramelo (Nginx + PM2, sin
+Docker). El paso a paso completo (Postgres, `.env`, PM2, bloque de Nginx, Certbot) vive en
+`DEPLOY.md` — no se repite aquí. Repo en GitHub: `https://github.com/Dagonnet1988/camelia`
+(público).
+
+**Bugs reales encontrados en el primer despliegue (ya corregidos, documentados con detalle en
+`DEPLOY.md`) — relevantes si se despliega de nuevo en otro servidor:**
+
+1. El generador de Prisma (`prisma-client`) necesita `moduleFormat = "cjs"` explícito en
+   `schema.prisma` — sin eso emite ESM (`import.meta.url`) que `node` puro no puede cargar
+   (aunque `tsx` en dev sí lo tolera).
+2. `tsc` no copia `src/generated/prisma/` a `dist/` — el script `build` de
+   `backend/package.json` lo hace explícitamente después de compilar.
+3. `dotenv` no sobreescribe variables ya presentes en `process.env` por defecto — el VPS tenía
+   `PORT`/`NODE_ENV` heredados del entorno compartido con Ramelo. Se usa
+   `dotenv.config({ override: true })`, aislado en `backend/src/lib/env.ts` e importado como
+   *primera línea* de `index.ts` (un `import` normal, no una llamada suelta en medio de otros
+   imports — con `tsx`/esbuild los imports se "hoistean" por encima del código normal, así que
+   una llamada suelta a `dotenv.config()` intercalada entre imports se ejecuta *después* de que
+   otros módulos ya intentaron leer `process.env`, dependiendo del orden textual).
+4. En Nginx, un `location` por **regex** (`~* \.png$` etc., para cachear assets estáticos)
+   le gana a un `location` de **prefijo simple** (`/uploads/`, `/api/`) sin importar el orden
+   en el archivo — hacía que las fotos de productos dieran 404 aunque existieran en disco y el
+   backend las sirviera bien. Se soluciona con el modificador `^~` en esos prefijos.
+5. Postgres traía `Europe/Berlin` como timezone del servidor (default de fábrica del VPS, nada
+   que ver con Ramelo). Se ajustó **solo para la base de Camelia**
+   (`ALTER DATABASE bisuteria_db SET timezone TO 'America/Bogota'`), sin tocar la config global
+   de Postgres ni la base de Ramelo.
 
 ### Módulo de notificaciones por WhatsApp — COMPLETO (2026-07-28)
 

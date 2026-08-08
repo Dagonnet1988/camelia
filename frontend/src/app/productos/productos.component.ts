@@ -10,6 +10,7 @@ interface EdicionProducto {
   categoria: Categoria;
   valorVenta: number | null;
   stockMinimo: number | null;
+  proveedor: string;
 }
 
 @Component({
@@ -27,7 +28,7 @@ export class ProductosComponent implements OnInit {
   exito = signal<string | null>(null);
   guardando = signal(false);
 
-  form: EdicionProducto = { nombre: '', categoria: 'arete', valorVenta: null, stockMinimo: 0 };
+  form: EdicionProducto = { nombre: '', categoria: 'arete', valorVenta: null, stockMinimo: 0, proveedor: '' };
 
   archivosFoto: File[] = [];
   subiendoFotos = signal(false);
@@ -42,6 +43,11 @@ export class ProductosComponent implements OnInit {
   }
 
   get puedeEditar(): boolean {
+    // Editar (incl. fotos) esta abierto a los 3 roles; eliminar sigue siendo manager/admin.
+    return true;
+  }
+
+  get puedeEliminar(): boolean {
     return this.auth.esManagerOAdmin();
   }
 
@@ -56,6 +62,7 @@ export class ProductosComponent implements OnInit {
       categoria: producto.categoria,
       valorVenta: Number(producto.valorVenta),
       stockMinimo: producto.stockMinimo,
+      proveedor: producto.proveedor ?? '',
     };
     this.error.set(null);
     this.exito.set(null);
@@ -120,6 +127,7 @@ export class ProductosComponent implements OnInit {
         categoria: this.form.categoria,
         valorVenta: this.form.valorVenta,
         stockMinimo: this.form.stockMinimo ?? 0,
+        proveedor: this.form.proveedor || undefined,
       })
       .subscribe({
         next: () => {

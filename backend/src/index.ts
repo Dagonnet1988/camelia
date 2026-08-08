@@ -1,8 +1,4 @@
-// override: true porque el proceso puede heredar variables (ej. PORT) del entorno de PM2/la
-// shell del servidor (compartido con otros proyectos como Ramelo) - el .env propio de Camelia
-// siempre debe ganar sobre lo heredado, no al reves (comportamiento por defecto de dotenv).
-import dotenv from "dotenv";
-dotenv.config({ override: true });
+import "./lib/env";
 import path from "node:path";
 import cookieParser from "cookie-parser";
 import express from "express";
@@ -55,7 +51,8 @@ app.use("/api/auth", authRouter);
 
 // productos: GET (catalogo) abierto a los 3 roles; las mutaciones se restringen adentro del router.
 app.use("/api/productos", requireAuth, productosRouter);
-app.use("/api/compras", requireAuth, requireManagerOrAdmin, comprasRouter);
+// Compras esta abierto a los 3 roles (pedido explicito del usuario, 2026-08-08).
+app.use("/api/compras", requireAuth, comprasRouter);
 app.use("/api/comisiones", requireAuth, requireManagerOrAdmin, comisionesRouter);
 app.use("/api/compradores", requireAuth, compradoresRouter);
 app.use("/api/ventas", requireAuth, ventasRouter);

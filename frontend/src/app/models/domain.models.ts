@@ -20,6 +20,7 @@ export interface Producto {
   stockActual: number;
   stockMinimo: number;
   fechaIngreso: string;
+  proveedor: string | null;
   fotos: FotoProducto[];
 }
 
@@ -44,6 +45,7 @@ export interface ActualizarProductoInput {
   categoria: Categoria;
   valorVenta: number;
   stockMinimo: number;
+  proveedor?: string;
 }
 
 export interface Comprador {

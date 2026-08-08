@@ -86,6 +86,7 @@
     height: 100%;
     object-fit: cover;
     transition: transform 0.25s ease;
+    cursor: pointer;
   }
 }
 
@@ -160,6 +161,7 @@
   width: 45%;
   height: 45%;
   object-fit: contain;
+  cursor: default;
 }
 
 .producto-info {
@@ -188,5 +190,98 @@
 @media (max-width: 640px) {
   :host {
     padding: 16px;
+  }
+}
+
+.lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 200;
+}
+
+.lightbox-cerrar {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.lightbox-contenido {
+  position: relative;
+  max-width: min(90vw, 720px);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lightbox-imagen {
+  max-width: 100%;
+  max-height: 78vh;
+  object-fit: contain;
+  border-radius: 8px;
+  background: var(--brand-cream);
+}
+
+.lightbox-nombre {
+  color: #fff;
+  margin: 12px 0 0;
+  font-size: 14px;
+  text-align: center;
+}
+
+.lightbox-flecha {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  color: #0b0b0b;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #fff;
+  }
+}
+
+.lightbox-flecha-prev {
+  left: -8px;
+}
+
+.lightbox-flecha-next {
+  right: -8px;
+}
+
+.lightbox-puntos {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+
+  // el .activo por defecto (fondo casi negro) es invisible sobre el fondo oscuro del lightbox
+  .punto.activo {
+    background: #fff;
   }
 }

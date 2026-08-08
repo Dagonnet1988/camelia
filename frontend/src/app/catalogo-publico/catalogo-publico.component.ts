@@ -14,11 +14,16 @@ const MONEDA = new Intl.NumberFormat('es-CO', {
   styleUrl: './catalogo-publico.component.scss',
 })
 export class CatalogoPublicoComponent implements OnInit {
-  categorias: Categoria[] = ['arete', 'anillo', 'manilla', 'collar', 'otro'];
-
   productos = signal<ProductoPublico[]>([]);
   cargando = signal(true);
   categoriaActiva = signal<Categoria | 'todas'>('todas');
+
+  // Categoria es texto libre; las categorias del filtro son las que realmente estan en uso
+  // entre los productos visibles, no una lista fija.
+  categorias = computed(() => {
+    const set = new Set(this.productos().map((p) => p.categoria).filter(Boolean));
+    return Array.from(set).sort();
+  });
 
   filtrados = computed(() => {
     const activa = this.categoriaActiva();

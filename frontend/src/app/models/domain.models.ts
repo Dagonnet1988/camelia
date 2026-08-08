@@ -1,4 +1,6 @@
-export type Categoria = 'arete' | 'anillo' | 'manilla' | 'collar' | 'otro';
+// Texto libre (no es un enum fijo): el catalogo deriva las categorias disponibles de las que
+// ya estan en uso entre los productos, no de una lista predefinida.
+export type Categoria = string;
 export type MedioPago = 'contado' | 'cuotas';
 export type Canal = 'whatsapp' | 'presencial';
 export type EstadoCuota = 'pendiente' | 'pagada' | 'atrasada';

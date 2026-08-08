@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireManagerOrAdmin } from "../lib/auth-middleware";
-import { CATEGORIAS_PRODUCTO } from "../lib/constantes";
 import { asyncHandler, ApiError } from "../lib/http";
 import { uploadFotoProducto } from "../lib/upload";
 import { validateBody } from "../lib/validate";
@@ -10,14 +9,14 @@ import * as productosService from "../services/productos.service";
 const crearProductoSchema = z.object({
   codigo: z.string().min(1),
   nombre: z.string().min(1),
-  categoria: z.enum(CATEGORIAS_PRODUCTO),
+  categoria: z.string().min(1),
   valorVenta: z.number().positive(),
   stockMinimo: z.number().int().nonnegative().default(0),
 });
 
 const actualizarProductoSchema = z.object({
   nombre: z.string().min(1).optional(),
-  categoria: z.enum(CATEGORIAS_PRODUCTO).optional(),
+  categoria: z.string().min(1).optional(),
   valorVenta: z.number().positive().optional(),
   stockMinimo: z.number().int().nonnegative().optional(),
   proveedor: z.string().optional(),

@@ -1,11 +1,10 @@
 import { Prisma } from "../generated/prisma/client";
-import type { CategoriaProducto } from "../generated/prisma/enums";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../lib/http";
 
 export interface ProductoNuevoInput {
   nombre: string;
-  categoria: CategoriaProducto;
+  categoria: string;
   valorVenta: number;
   stockMinimo?: number;
 }

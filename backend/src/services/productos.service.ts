@@ -3,19 +3,18 @@ import path from "node:path";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../lib/http";
 import { UPLOADS_DIR } from "../lib/upload";
-import type { CategoriaProducto } from "../generated/prisma/enums";
 
 export interface CrearProductoInput {
   codigo: string;
   nombre: string;
-  categoria: CategoriaProducto;
+  categoria: string;
   valorVenta: number;
   stockMinimo: number;
 }
 
 export interface ActualizarProductoInput {
   nombre?: string;
-  categoria?: CategoriaProducto;
+  categoria?: string;
   valorVenta?: number;
   stockMinimo?: number;
   proveedor?: string;

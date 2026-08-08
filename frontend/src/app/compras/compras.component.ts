@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { Categoria, CompraInventario, Producto } from '../models/domain.models';
 import { ComprasService } from '../services/compras.service';
@@ -31,7 +31,7 @@ const FORM_VACIO: CompraForm = {
 const PRODUCTO_NUEVO_VACIO: ProductoNuevoForm = {
   codigo: '',
   nombre: '',
-  categoria: 'arete',
+  categoria: '',
   valorVenta: null,
   stockMinimo: 0,
 };
@@ -43,13 +43,17 @@ const PRODUCTO_NUEVO_VACIO: ProductoNuevoForm = {
   styleUrl: './compras.component.scss',
 })
 export class ComprasComponent implements OnInit {
-  categorias: Categoria[] = ['arete', 'anillo', 'manilla', 'collar', 'otro'];
-
   productos = signal<Producto[]>([]);
   compras = signal<CompraInventario[]>([]);
   error = signal<string | null>(null);
   exito = signal<string | null>(null);
   guardando = signal(false);
+
+  // Categoria es texto libre; se sugieren las que ya estan en uso en vez de una lista fija.
+  categoriasSugeridas = computed(() => {
+    const set = new Set(this.productos().map((p) => p.categoria).filter(Boolean));
+    return Array.from(set).sort();
+  });
 
   esProductoNuevo = signal(false);
 

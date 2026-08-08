@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { Categoria, FotoProducto, Producto } from '../models/domain.models';
 import { AuthService } from '../services/auth.service';
@@ -20,15 +20,19 @@ interface EdicionProducto {
   styleUrl: './productos.component.scss',
 })
 export class ProductosComponent implements OnInit {
-  categorias: Categoria[] = ['arete', 'anillo', 'manilla', 'collar', 'otro'];
-
   productos = signal<Producto[]>([]);
   editandoCodigo = signal<string | null>(null);
   error = signal<string | null>(null);
   exito = signal<string | null>(null);
   guardando = signal(false);
 
-  form: EdicionProducto = { nombre: '', categoria: 'arete', valorVenta: null, stockMinimo: 0, proveedor: '' };
+  // Categoria es texto libre; se sugieren las que ya estan en uso en vez de una lista fija.
+  categoriasSugeridas = computed(() => {
+    const set = new Set(this.productos().map((p) => p.categoria).filter(Boolean));
+    return Array.from(set).sort();
+  });
+
+  form: EdicionProducto = { nombre: '', categoria: '', valorVenta: null, stockMinimo: 0, proveedor: '' };
 
   archivosFoto: File[] = [];
   subiendoFotos = signal(false);

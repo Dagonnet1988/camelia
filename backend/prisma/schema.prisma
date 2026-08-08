@@ -8,14 +8,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum CategoriaProducto {
-  arete
-  anillo
-  manilla
-  collar
-  otro
-}
-
 enum MedioPago {
   contado
   cuotas
@@ -44,14 +36,14 @@ enum FrecuenciaCuotas {
 }
 
 model Producto {
-  codigo        String            @id
+  codigo        String   @id
   nombre        String
-  categoria     CategoriaProducto
-  valorVenta    Decimal           @map("valor_venta") @db.Decimal(12, 2)
-  costoPromedio Decimal           @default(0) @map("costo_promedio") @db.Decimal(12, 2)
-  stockActual   Int               @default(0) @map("stock_actual")
-  stockMinimo   Int               @default(0) @map("stock_minimo")
-  fechaIngreso  DateTime          @default(now()) @map("fecha_ingreso")
+  categoria     String
+  valorVenta    Decimal  @map("valor_venta") @db.Decimal(12, 2)
+  costoPromedio Decimal  @default(0) @map("costo_promedio") @db.Decimal(12, 2)
+  stockActual   Int      @default(0) @map("stock_actual")
+  stockMinimo   Int      @default(0) @map("stock_minimo")
+  fechaIngreso  DateTime @default(now()) @map("fecha_ingreso")
   proveedor     String?
 
   compras CompraInventario[]

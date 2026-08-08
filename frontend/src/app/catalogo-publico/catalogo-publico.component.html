@@ -8,7 +8,7 @@
   <button class="chip" type="button" [class.active]="categoriaActiva() === 'todas'" (click)="categoriaActiva.set('todas')">
     Todas
   </button>
-  @for (c of categorias; track c) {
+  @for (c of categorias(); track c) {
     <button class="chip" type="button" [class.active]="categoriaActiva() === c" (click)="categoriaActiva.set(c)">
       {{ c }}
     </button>

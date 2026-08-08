@@ -1,5 +1,5 @@
 import "dotenv/config";
-import type { CategoriaProducto, Canal, FrecuenciaCuotas, MedioPago } from "../generated/prisma/enums";
+import type { Canal, FrecuenciaCuotas, MedioPago } from "../generated/prisma/enums";
 import { prisma } from "../lib/prisma";
 import { registrarCompra } from "../services/compras.service";
 import { marcarAtrasadas, marcarCuotaPagada } from "../services/cuotas.service";
@@ -14,7 +14,7 @@ const dias = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
 const PRODUCTOS: {
   codigo: string;
   nombre: string;
-  categoria: CategoriaProducto;
+  categoria: string;
   valorVenta: number;
   stockMinimo: number;
 }[] = [

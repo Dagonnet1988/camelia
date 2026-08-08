@@ -19,7 +19,9 @@ usuarios es suficiente). **Login implementado (2026-08-01)** — ver modelo
 ### productos
 - codigo (PK, string, único — el SKU)
 - nombre
-- categoria (arete, anillo, manilla, collar, otro)
+- categoria (string, texto libre — ver "Categorías como texto libre" abajo. Originalmente era un
+  enum fijo con 5 valores: arete, anillo, manilla, collar, otro; se migró a texto libre el
+  2026-08-08.)
 - valor_venta (precio de lista, "de contado")
 - costo_promedio (decimal, se recalcula automáticamente con cada compra/refill — ver `compras_inventario`)
 - stock_actual (int)
@@ -477,6 +479,38 @@ Pedido explícito del usuario, ya con la app en producción:
   tarjeta, se abre una superposición a pantalla completa con la foto en grande, flechas/puntos
   de navegación si hay varias fotos, y se cierra con el botón ×, clic en el fondo, o `Escape`
   (`@HostListener('document:keydown', ...)` en `catalogo-publico.component.ts`).
+
+### Categorías como texto libre (sin tabla, sin enum) — COMPLETO (2026-08-08)
+
+Pedido explícito del usuario: no crear un módulo de gestión de categorías con su propia tabla
+— más simple, `categoria` pasa a ser texto libre en `productos`, editable como cualquier otro
+campo, y las categorías que se muestran para filtrar/sugerir se derivan de las que ya están en
+uso en vez de una lista fija en código.
+
+- **Migración de enum a texto** (`categoria_texto_libre`): cambiar un enum de Postgres con
+  datos existentes a texto **no se puede hacer con un simple diff de Prisma** — el
+  auto-generado quería hacer `DROP COLUMN` + `ADD COLUMN NOT NULL` (habría fallado o perdido
+  datos). Se generó con `prisma migrate dev --create-only` y se reescribió a mano:
+  `ALTER TABLE productos ALTER COLUMN categoria TYPE TEXT USING categoria::text` (cast
+  enum→text que preserva los valores) seguido de `DROP TYPE "CategoriaProducto"`. Verificado
+  comparando el `SELECT codigo, categoria FROM productos` antes y después del migrate — idéntico.
+- **Backend:** `Producto.categoria` es `String` en el schema (ya no hay enum
+  `CategoriaProducto`). Los endpoints de creación/edición de producto y de `productoNuevo` en
+  Compras validan `categoria` con `z.string().min(1)` en vez de `z.enum(CATEGORIAS_PRODUCTO)`.
+  `backend/src/lib/constantes.ts` (la lista fija) se eliminó por completo, ya no tiene uso.
+- **Frontend:** el tipo `Categoria` en `domain.models.ts` pasó de union literal
+  (`'arete' | 'anillo' | ...`) a `string`. En vez de un `<select>` con opciones fijas, el campo
+  categoría en el formulario de edición de Productos y en "producto nuevo" de Compras es un
+  `<input>` con `<datalist>` — sugiere autocompletar con las categorías ya usadas
+  (`categoriasSugeridas = computed(...)` derivado de la lista de productos ya cargada en cada
+  componente, sin pegarle a un endpoint nuevo) pero permite escribir cualquier valor nuevo. Los
+  chips de filtro del catálogo público (`catalogo-publico.component.ts`) se calculan igual, como
+  `computed()` sobre los productos públicos ya cargados — escribir una categoría nueva en un
+  producto la hace aparecer automáticamente como chip de filtro la próxima vez que alguien entre
+  al catálogo, sin tocar código.
+- Probado end-to-end: editar un producto con una categoría nueva ("Edición Especial") desde
+  Productos → aparece sugerida en el datalist junto a las categorías previas → guarda bien →
+  aparece como chip nuevo en el catálogo público junto a las demás.
 
 ### Identidad de marca — COMPLETO (2026-08-02)
 

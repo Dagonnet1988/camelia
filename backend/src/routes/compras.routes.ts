@@ -1,13 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
-import { CATEGORIAS_PRODUCTO } from "../lib/constantes";
 import { asyncHandler } from "../lib/http";
 import { validateBody } from "../lib/validate";
 import * as comprasService from "../services/compras.service";
 
 const productoNuevoSchema = z.object({
   nombre: z.string().min(1),
-  categoria: z.enum(CATEGORIAS_PRODUCTO),
+  categoria: z.string().min(1),
   valorVenta: z.number().positive(),
   stockMinimo: z.number().int().nonnegative().optional(),
 });

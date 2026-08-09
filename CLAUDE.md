@@ -512,6 +512,27 @@ uso en vez de una lista fija en código.
   Productos → aparece sugerida en el datalist junto a las categorías previas → guarda bien →
   aparece como chip nuevo en el catálogo público junto a las demás.
 
+### Edición de compras + más columnas en el historial — COMPLETO (2026-08-08)
+
+Pedido explícito del usuario: la tabla de historial de Compras mostraba muy poco contexto del
+producto (solo nombre), y no había forma de corregir una compra ya registrada.
+
+- **Historial de compras** ahora también muestra código, categoría y valor de venta del
+  producto (unidos desde la lista de productos ya cargada, sin pegarle a un endpoint nuevo),
+  además de lo que ya tenía (cantidad, valor unitario, proveedor, fecha).
+- **Editar una compra** (`PUT /api/compras/:id`, abierto a los 3 roles igual que el resto de
+  Compras) permite corregir cantidad, valor unitario, proveedor y fecha de una compra ya
+  registrada. La parte delicada: el costo promedio ponderado depende del **orden cronológico**
+  de las compras, así que a diferencia de `registrarCompra` (que solo suma incrementalmente
+  sobre el costo actual — válido porque una compra nueva siempre es la más reciente), editar
+  una compra **recalcula el costo promedio desde cero repasando todo el historial de compras
+  del producto** en orden de `fecha_compra`, y luego resta el total vendido para obtener el
+  stock final. Bloqueado con 400 si el cambio dejaría el stock en negativo (ej. reducir la
+  cantidad de una compra por debajo de lo que ya se vendió de ese lote).
+- Probado end-to-end: editar la cantidad de una compra existente (10 → 15 unidades) y confirmar
+  que tanto `stock_actual` como `costo_promedio` del producto quedaron exactamente iguales al
+  cálculo manual esperado.
+
 ### Identidad de marca — COMPLETO (2026-08-02)
 
 Assets de marca ya existentes en `frontend/public/brand/files/` (logo maestro, monograma,

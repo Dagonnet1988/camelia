@@ -80,6 +80,13 @@ export interface RegistrarCompraInput {
   productoNuevo?: ProductoNuevoInput;
 }
 
+export interface ActualizarCompraInput {
+  cantidad: number;
+  valorCompraUnitario: number;
+  proveedor?: string;
+  fechaCompra: string;
+}
+
 export interface Cuota {
   id: number;
   idVenta: number;

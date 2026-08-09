@@ -19,6 +19,13 @@ export interface RegistrarCompraInput {
   productoNuevo?: ProductoNuevoInput;
 }
 
+export interface ActualizarCompraInput {
+  cantidad: number;
+  valorCompraUnitario: number;
+  proveedor?: string;
+  fechaCompra: Date;
+}
+
 export function listarCompras(codigoProducto?: string) {
   return prisma.compraInventario.findMany({
     where: codigoProducto ? { codigoProducto } : undefined,
@@ -78,5 +85,65 @@ export async function registrarCompra(input: RegistrarCompraInput) {
         ...(input.fechaCompra ? { fechaCompra: input.fechaCompra } : {}),
       },
     });
+  });
+}
+
+export async function actualizarCompra(id: number, input: ActualizarCompraInput) {
+  return prisma.$transaction(async (tx) => {
+    const existente = await tx.compraInventario.findUnique({ where: { id } });
+    if (!existente) throw new ApiError(404, `Compra ${id} no existe`);
+
+    await tx.compraInventario.update({
+      where: { id },
+      data: {
+        cantidad: input.cantidad,
+        valorCompraUnitario: input.valorCompraUnitario,
+        proveedor: input.proveedor,
+        fechaCompra: input.fechaCompra,
+      },
+    });
+
+    // A diferencia de registrarCompra (que suma incrementalmente sobre el costo actual,
+    // correcto porque una compra nueva siempre es la mas reciente), editar una compra puede
+    // cambiar cantidad/valor/fecha de cualquier punto de la historia - el costo promedio
+    // ponderado depende del orden, asi que se recalcula desde cero repasando TODAS las
+    // compras del producto en orden cronologico.
+    const compras = await tx.compraInventario.findMany({
+      where: { codigoProducto: existente.codigoProducto },
+      orderBy: [{ fechaCompra: "asc" }, { id: "asc" }],
+    });
+
+    let stock = 0;
+    let costo = new Prisma.Decimal(0);
+    for (const c of compras) {
+      costo =
+        stock === 0
+          ? c.valorCompraUnitario
+          : new Prisma.Decimal(stock)
+              .mul(costo)
+              .add(new Prisma.Decimal(c.cantidad).mul(c.valorCompraUnitario))
+              .div(stock + c.cantidad);
+      stock += c.cantidad;
+    }
+
+    const ventasAgregado = await tx.venta.aggregate({
+      where: { codigoProducto: existente.codigoProducto },
+      _sum: { cantidad: true },
+    });
+    const stockFinal = stock - (ventasAgregado._sum.cantidad ?? 0);
+
+    if (stockFinal < 0) {
+      throw new ApiError(
+        400,
+        `Este cambio dejaría el stock de ${existente.codigoProducto} en negativo (ya se vendieron más unidades de las que quedarían compradas)`,
+      );
+    }
+
+    await tx.producto.update({
+      where: { codigo: existente.codigoProducto },
+      data: { stockActual: stockFinal, costoPromedio: costo },
+    });
+
+    return tx.compraInventario.findUniqueOrThrow({ where: { id } });
   });
 }

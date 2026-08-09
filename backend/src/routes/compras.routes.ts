@@ -20,6 +20,13 @@ const registrarCompraSchema = z.object({
   productoNuevo: productoNuevoSchema.optional(),
 });
 
+const actualizarCompraSchema = z.object({
+  cantidad: z.number().int().positive(),
+  valorCompraUnitario: z.number().positive(),
+  proveedor: z.string().min(1).optional(),
+  fechaCompra: z.coerce.date(),
+});
+
 export const comprasRouter = Router();
 
 comprasRouter.get(
@@ -36,5 +43,14 @@ comprasRouter.post(
   asyncHandler(async (req, res) => {
     const compra = await comprasService.registrarCompra(req.body);
     res.status(201).json(compra);
+  }),
+);
+
+comprasRouter.put(
+  "/:id",
+  validateBody(actualizarCompraSchema),
+  asyncHandler(async (req, res) => {
+    const compra = await comprasService.actualizarCompra(Number(req.params["id"]), req.body);
+    res.json(compra);
   }),
 );

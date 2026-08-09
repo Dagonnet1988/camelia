@@ -80,27 +80,74 @@
   </form>
 </section>
 
+@if (editandoCompraId()) {
+  <section class="card" style="margin-top: 20px">
+    <h2>Editar compra #{{ editandoCompraId() }}</h2>
+    <p class="hint">
+      Recalcula el costo promedio del producto repasando todo su historial de compras — puede
+      tardar un instante si el producto tiene muchas compras registradas.
+    </p>
+
+    <form (ngSubmit)="guardarEdicionCompra()">
+      <div class="form-grid">
+        <div class="field">
+          <label>Cantidad</label>
+          <input type="number" name="cantidadEdicion" [(ngModel)]="formEdicion.cantidad" min="1" required />
+        </div>
+        <div class="field">
+          <label>Valor de compra (unitario)</label>
+          <input type="number" name="valorCompraUnitarioEdicion" [(ngModel)]="formEdicion.valorCompraUnitario" min="0" required />
+        </div>
+        <div class="field">
+          <label>Proveedor (opcional)</label>
+          <input name="proveedorEdicion" [(ngModel)]="formEdicion.proveedor" />
+        </div>
+        <div class="field">
+          <label>Fecha</label>
+          <input type="date" name="fechaCompraEdicion" [(ngModel)]="formEdicion.fechaCompra" required />
+        </div>
+        <div class="field">
+          <button class="btn" type="submit" [disabled]="guardandoEdicion()">Guardar cambios</button>
+        </div>
+        <div class="field">
+          <button class="btn btn-secondary" type="button" (click)="cancelarEdicionCompra()">Cancelar</button>
+        </div>
+      </div>
+    </form>
+  </section>
+}
+
 <section class="card" style="margin-top: 20px">
   <h2>Historial de compras</h2>
   <div class="table-scroll">
     <table>
       <thead>
         <tr>
+          <th>Codigo</th>
           <th>Producto</th>
+          <th>Categoria</th>
+          <th class="num">Valor venta</th>
           <th class="num">Cantidad</th>
           <th class="num">Valor unitario</th>
           <th>Proveedor</th>
           <th>Fecha</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         @for (c of compras(); track c.id) {
           <tr>
+            <td>{{ c.codigoProducto }}</td>
             <td>{{ nombreProducto(c.codigoProducto) }}</td>
+            <td>{{ producto(c.codigoProducto)?.categoria ?? '—' }}</td>
+            <td class="num">{{ producto(c.codigoProducto)?.valorVenta ?? '—' }}</td>
             <td class="num">{{ c.cantidad }}</td>
             <td class="num">{{ c.valorCompraUnitario }}</td>
             <td>{{ c.proveedor ?? '—' }}</td>
             <td>{{ c.fechaCompra | date: 'dd/MM/yyyy':'UTC' }}</td>
+            <td>
+              <button class="btn btn-secondary" type="button" (click)="editarCompra(c)">Editar</button>
+            </td>
           </tr>
         }
       </tbody>

@@ -13,6 +13,13 @@ interface CompraForm {
   proveedor: string;
 }
 
+interface EdicionCompraForm {
+  cantidad: number | null;
+  valorCompraUnitario: number | null;
+  proveedor: string;
+  fechaCompra: string;
+}
+
 interface ProductoNuevoForm {
   codigo: string;
   nombre: string;
@@ -60,6 +67,10 @@ export class ComprasComponent implements OnInit {
   form: CompraForm = { ...FORM_VACIO };
   productoNuevo: ProductoNuevoForm = { ...PRODUCTO_NUEVO_VACIO };
 
+  editandoCompraId = signal<number | null>(null);
+  guardandoEdicion = signal(false);
+  formEdicion: EdicionCompraForm = { cantidad: null, valorCompraUnitario: null, proveedor: '', fechaCompra: '' };
+
   constructor(
     private comprasService: ComprasService,
     private productosService: ProductosService,
@@ -76,6 +87,10 @@ export class ComprasComponent implements OnInit {
 
   nombreProducto(codigo: string): string {
     return this.productos().find((p) => p.codigo === codigo)?.nombre ?? codigo;
+  }
+
+  producto(codigo: string): Producto | undefined {
+    return this.productos().find((p) => p.codigo === codigo);
   }
 
   toggleProductoNuevo(valor: boolean): void {
@@ -132,6 +147,56 @@ export class ComprasComponent implements OnInit {
         error: (err) => {
           this.error.set(extractError(err));
           this.guardando.set(false);
+        },
+      });
+  }
+
+  editarCompra(c: CompraInventario): void {
+    this.editandoCompraId.set(c.id);
+    this.formEdicion = {
+      cantidad: c.cantidad,
+      valorCompraUnitario: Number(c.valorCompraUnitario),
+      proveedor: c.proveedor ?? '',
+      fechaCompra: c.fechaCompra.slice(0, 10),
+    };
+    this.error.set(null);
+    this.exito.set(null);
+  }
+
+  cancelarEdicionCompra(): void {
+    this.editandoCompraId.set(null);
+  }
+
+  guardarEdicionCompra(): void {
+    const id = this.editandoCompraId();
+    if (!id) return;
+    this.error.set(null);
+    this.exito.set(null);
+
+    if (!this.formEdicion.cantidad || !this.formEdicion.valorCompraUnitario || !this.formEdicion.fechaCompra) {
+      this.error.set('Cantidad, valor unitario y fecha son obligatorios');
+      return;
+    }
+
+    this.guardandoEdicion.set(true);
+    this.comprasService
+      .actualizar(id, {
+        cantidad: this.formEdicion.cantidad,
+        valorCompraUnitario: this.formEdicion.valorCompraUnitario,
+        proveedor: this.formEdicion.proveedor || undefined,
+        fechaCompra: this.formEdicion.fechaCompra,
+      })
+      .subscribe({
+        next: () => {
+          this.exito.set(`Compra #${id} actualizada — costo promedio recalculado`);
+          this.guardandoEdicion.set(false);
+          this.editandoCompraId.set(null);
+          this.cargarCompras();
+          this.productosService.listar().subscribe((data) => this.productos.set(data));
+        },
+        error: (err) => {
+          this.error.set(extractError(err));
+          this.guardandoEdicion.set(false);
         },
       });
   }

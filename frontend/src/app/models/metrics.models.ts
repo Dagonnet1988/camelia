@@ -15,7 +15,7 @@ export interface MargenProducto {
   nombre: string;
   categoria: string;
   valorVenta: string;
-  costoPromedio: string;
+  costoCompra: string;
   margen: string;
 }
 

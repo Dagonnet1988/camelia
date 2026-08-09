@@ -43,7 +43,7 @@
               <th>Producto</th>
               <th>Categoria</th>
               <th class="num">Precio venta</th>
-              <th class="num">Costo prom.</th>
+              <th class="num">Costo compra</th>
               <th class="num">Margen</th>
             </tr>
           </thead>
@@ -53,11 +53,21 @@
                 <td>{{ p.nombre }}</td>
                 <td>{{ p.categoria }}</td>
                 <td class="num">{{ formatMoneda(p.valorVenta) }}</td>
-                <td class="num">{{ formatMoneda(p.costoPromedio) }}</td>
+                <td class="num">{{ formatMoneda(p.costoCompra) }}</td>
                 <td class="num">{{ formatPorcentaje(p.margen) }}</td>
               </tr>
             }
           </tbody>
+          @if (margenProductos()?.length) {
+            <tfoot>
+              <tr class="fila-total">
+                <td colspan="2">Total</td>
+                <td class="num">{{ formatMoneda(margenTotales().valorVenta) }}</td>
+                <td class="num">{{ formatMoneda(margenTotales().costoCompra) }}</td>
+                <td class="num"></td>
+              </tr>
+            </tfoot>
+          }
         </table>
       </div>
     </div>

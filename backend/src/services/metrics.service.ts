@@ -31,20 +31,38 @@ export async function topProductos(rango: RangoFechas, limit: number) {
   return { porUnidades, porIngresos };
 }
 
-// 2. Margen por producto: (valor_venta - costo_promedio) / valor_venta, ranking de mejor % de ganancia.
+// 2. Margen por producto: (valor_venta - costo_ultima_compra) / valor_venta, ranking de mejor % de ganancia.
+// Usa el valor_compra_unitario de la compra mas reciente de cada producto (no el costo promedio
+// ponderado) porque para reportes externos se pide el costo de compra real y documentado, no un
+// calculo interno.
 export async function margenPorProducto() {
   const productos = await prisma.producto.findMany();
+  const compras = await prisma.compraInventario.findMany({
+    orderBy: [{ fechaCompra: "desc" }, { id: "desc" }],
+    select: { codigoProducto: true, valorCompraUnitario: true },
+  });
+
+  const costoUltimaCompra = new Map<string, Prisma.Decimal>();
+  for (const c of compras) {
+    if (!costoUltimaCompra.has(c.codigoProducto)) {
+      costoUltimaCompra.set(c.codigoProducto, c.valorCompraUnitario);
+    }
+  }
+
   return productos
-    .map((p) => ({
-      codigo: p.codigo,
-      nombre: p.nombre,
-      categoria: p.categoria,
-      valorVenta: p.valorVenta,
-      costoPromedio: p.costoPromedio,
-      margen: p.valorVenta.isZero()
-        ? new Prisma.Decimal(0)
-        : p.valorVenta.sub(p.costoPromedio).div(p.valorVenta),
-    }))
+    .map((p) => {
+      const costoCompra = costoUltimaCompra.get(p.codigo) ?? p.costoPromedio;
+      return {
+        codigo: p.codigo,
+        nombre: p.nombre,
+        categoria: p.categoria,
+        valorVenta: p.valorVenta,
+        costoCompra,
+        margen: p.valorVenta.isZero()
+          ? new Prisma.Decimal(0)
+          : p.valorVenta.sub(costoCompra).div(p.valorVenta),
+      };
+    })
     .sort((a, b) => b.margen.cmp(a.margen));
 }
 

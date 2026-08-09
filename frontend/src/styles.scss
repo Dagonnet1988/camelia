@@ -147,6 +147,12 @@ table {
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
+
+  tfoot .fila-total td {
+    font-weight: 600;
+    border-top: 2px solid var(--gridline);
+    border-bottom: none;
+  }
 }
 
 .badge {

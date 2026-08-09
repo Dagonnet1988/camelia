@@ -116,7 +116,10 @@ Al insertar una compra:
 ## Métricas / dashboard que debe entregar la app
 
 1. **Top productos** — más vendidos por unidades y por ingresos (pueden diferir).
-2. **Margen por producto** — `(valor_venta - costo_promedio) / valor_venta`, ranking de mejor % de ganancia.
+2. **Margen por producto** — `(valor_venta - costo_ultima_compra) / valor_venta`, ranking de mejor % de
+   ganancia. Usa el `valor_compra_unitario` de la compra más reciente de cada producto, no el
+   `costo_promedio` ponderado (ver detalle en el backlog: 2026-08-08). Incluye fila de totales
+   (sumatoria de precio de venta y de costo de compra) al pie de la tabla.
 3. **Rotación de inventario** — unidades vendidas / tiempo, por producto y categoría.
 4. **Ganancia acumulada** — por semana/mes, con tendencia.
 5. **Análisis ABC** — clasificar productos en A/B/C según % de ganancia que aportan.
@@ -532,6 +535,32 @@ producto (solo nombre), y no había forma de corregir una compra ya registrada.
 - Probado end-to-end: editar la cantidad de una compra existente (10 → 15 unidades) y confirmar
   que tanto `stock_actual` como `costo_promedio` del producto quedaron exactamente iguales al
   cálculo manual esperado.
+
+### Margen por producto: costo de compra real en vez de costo promedio — COMPLETO (2026-08-08)
+
+Pedido explícito del usuario: para reportes externos no aceptan el `costo_promedio` ponderado
+como base del margen ("no refleja lo que realmente costó ese stock" — mezcla compras viejas y
+nuevas a distinto precio). Se pidió usar el precio de compra real, y agregar una fila de totales
+(sumatoria) a las columnas de precio de venta y costo de compra, igual que ya se sumaba el
+precio de venta.
+
+- `backend/src/services/metrics.service.ts` (`margenPorProducto`): en vez de leer
+  `productos.costo_promedio`, trae todas las `compras_inventario` ordenadas por
+  `fecha_compra desc, id desc` y se queda con la primera (= más reciente) por producto —
+  ese `valor_compra_unitario` es el "costo de compra" usado tanto para mostrarlo en la tabla
+  como para calcular el margen (`(valor_venta - costo_compra) / valor_venta`). Si un producto no
+  tiene ninguna compra registrada (no debería pasar, ya que todo producto nace de una Compra —
+  ver "Productos alimentado desde Compras" arriba) cae de vuelta a `costo_promedio` como
+  fallback, solo para no romper la fila.
+- Campo renombrado de `costoPromedio` a `costoCompra` en la respuesta de
+  `GET /api/metrics/margen-productos` y en el modelo `MargenProducto` del frontend — el nombre
+  ya no debía sugerir un promedio.
+- Frontend (`dashboard.component.html`): columna "Costo prom." renombrada a "Costo compra", y se
+  agregó un `<tfoot>` con la fila "Total" (colspan sobre Producto/Categoría) sumando Precio
+  venta y Costo compra de todos los productos listados — `margenTotales` es un `computed()` en
+  `dashboard.component.ts` derivado de `margenProductos()`. Estilo compartido `.fila-total` en
+  `styles.scss` (borde superior, negrita) reutilizable por cualquier otra tabla que necesite una
+  fila de totales en el futuro.
 
 ### Identidad de marca — COMPLETO (2026-08-02)
 

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import type { ChartConfiguration } from 'chart.js/auto';
 import { catchError, of } from 'rxjs';
 import type {
@@ -55,6 +55,13 @@ export class DashboardComponent implements OnInit {
 
   margenProductos = signal<MargenProducto[] | undefined>(undefined);
   margenChart = signal<ChartConfiguration | undefined>(undefined);
+  margenTotales = computed(() => {
+    const items = this.margenProductos() ?? [];
+    return {
+      valorVenta: items.reduce((acc, p) => acc + Number(p.valorVenta), 0),
+      costoCompra: items.reduce((acc, p) => acc + Number(p.costoCompra), 0),
+    };
+  });
 
   rotacion = signal<RotacionInventarioResponse | undefined>(undefined);
   rotacionProductoChart = signal<ChartConfiguration | undefined>(undefined);

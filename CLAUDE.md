@@ -63,7 +63,11 @@ Al insertar una compra:
   se toma de `configuracion_app.recargo_cuotas_global` (ajustable desde Comisiones); al editar
   una venta ya creada, se puede ajustar manualmente para esa venta puntual sin afectar el global.)
 - valor_total_venta (decimal, = valor_contado + recargo_cuotas)
-- costo_promedio_al_momento (decimal, copiado de productos.costo_promedio al momento de la venta, para que la ganancia histórica no se distorsione con recálculos futuros)
+- costo_promedio_al_momento (decimal — el nombre es histórico: desde 2026-08-09 se copia el costo
+  de la **compra más recientes** del producto al momento de la venta, no el promedio ponderado
+  `productos.costo_promedio` — ver backlog. Fallback al promedio ponderado solo si el producto
+  no tiene ninguna compra registrada. Se copia una vez y no se recalcula despues, para que la
+  ganancia histórica no se distorsione con compras futuras)
 - ganancia (decimal, = valor_total_venta - (costo_promedio_al_momento × cantidad))
 - canal (enum: 'whatsapp', 'presencial')
 - fecha_venta
@@ -655,6 +659,70 @@ construcción, sin necesidad de ningún ajuste.
   fecha_fin de envíos masivos de WhatsApp, fecha_creacion) tienen la misma clase de bug pero no
   se tocaron — quedan fuera del alcance que el usuario aprobó (ventas, compras, vencimiento de
   cuotas) y son metadata operativa de bajo riesgo, no registros financieros.
+
+### Ganancia por costo de última compra, compra por lote, busquedas, ajustes a los modales de edición — COMPLETO (2026-08-09)
+
+Ronda de ajustes tras usar en la práctica los modales de edición de Productos/Compras del
+batch anterior:
+
+- **Ganancia de ventas: costo de la última compra en vez de promedio ponderado (decisión
+  explícita del usuario).** Antes solo el panel "Margen por producto" del dashboard usaba el
+  costo de la última compra; ahora `ganancia` en cada venta nueva también — es un cambio
+  financiero real, no cosmético (afecta comisiones y reportes de ganancia hacia adelante). Ver
+  el ajuste en el modelo de datos de `ventas` arriba. `backend/src/services/compras.service.ts`
+  expone `costoUltimaCompra(tx, codigoProducto)` (consulta la compra más reciente por
+  `fecha_compra desc, id desc` — mismo criterio que ya usaba `margenPorProducto`);
+  `ventas.service.ts` (`registrarVenta`) la usa para `costoPromedioAlMomento`, con fallback al
+  `producto.costoPromedio` solo si el producto no tiene ninguna compra (no debería pasar).
+  `actualizarVenta` no cambió — sigue conservando el `costoPromedioAlMomento` original de la
+  venta, nunca lo recalcula (mismo patrón de snapshot histórico de siempre).
+- **Compras: al crear un producto nuevo desde una compra, el producto hereda el proveedor de
+  esa compra** (`registrarCompraEnTx` en `compras.service.ts`) — antes quedaba en `null` siempre
+  (el campo `proveedor` de producto es reciente y nada lo poblaba al crear vía Compras), lo que
+  hacía que el formulario de edición de Productos se viera "vacío" para todo producto nunca
+  editado a mano. Solo aplica hacia adelante — los productos ya existentes con `proveedor = null`
+  no se tocaron.
+- **Modal de edición de Compras — ahora también edita Categoría y Valor de venta del producto**
+  (pedido explícito: "no deja editar... categoria" / "me permite editar valor de compra y no
+  valor de venta"). Estos dos son campos del **producto**, no de la compra — al guardar, primero
+  se hace `PUT /api/compras/:id` (cantidad/valor unitario/proveedor/fecha/producto) y luego,
+  sobre el `codigoProducto` que haya quedado seleccionado, un `PUT /api/productos/:codigo` parcial
+  con solo `{ categoria, valorVenta }` (el backend ya soportaba updates parciales — se ajustó el
+  tipo `ActualizarProductoInput` del frontend, antes marcaba esos campos como obligatorios sin
+  necesidad). Si se reasigna la compra a otro producto con el selector, los campos
+  Categoría/Valor de venta se refrescan al instante (`onCambioProductoEdicion()`) para reflejar
+  el producto recién elegido, no el original. El título del modal pasó de "Editar compra #N" a
+  simplemente "Editar compra" — el ID de compra no aparece en ningún lado de la tabla (que ahora
+  ordena por nombre de producto, no por ID), así que mostrarlo confundía. Se quitó también la
+  palabra "costo promedio" de los mensajes visibles (hint y toast de éxito) del módulo de
+  Compras — sigue siendo internamente el promedio ponderado el que se recalcula y guarda en
+  `productos.costo_promedio` (compras.service.ts no cambió esa parte), pero ya no se le nombra
+  al usuario para no generar la confusión de que sea el mismo número que ahora usa Ganancia.
+- **Barra de búsqueda con autocompletado en Productos y Compras** — filtra por nombre o código
+  (pedido explícito: "que la busqueda pueda ser por nombre y codigo"), con un `<datalist>`
+  alimentado por los nombres/códigos ya registrados (`computed()` sobre la lista ya cargada, sin
+  endpoint nuevo) para autocompletar mientras se escribe. `productosFiltrados`/`comprasFiltradas`
+  son `computed()` derivados de `busqueda()` + la lista completa — la numeración de filas (`#`)
+  y el conteo del encabezado (`Productos (N)` / `Historial de compras (N)`) se recalculan sobre
+  la lista ya filtrada.
+- **Compra por lote** (pedido explícito: cargar 15-20 productos de un mismo proveedor en una
+  sola compra) — pantalla nueva en `/compras/lote` (link "Usa la compra por lote →" desde
+  Compras), con Proveedor/Fecha compartidos arriba y filas dinámicas abajo (botón "+ Agregar
+  línea" / "Quitar línea" por fila; cada fila puede ser un producto existente o, con un
+  checkbox, un producto nuevo con su propio código/nombre/categoría/valor de venta/stock
+  mínimo). Al guardar, **todas las líneas se registran en una sola transacción** — o se
+  registran todas o ninguna, para no dejar la compra a medias si una línea falla. Backend:
+  `POST /api/compras/lote` (`registrarCompraLoteSchema` en `compras.routes.ts`,
+  `registrarCompraLote` en `compras.service.ts`) reutiliza la lógica de `registrarCompra` sin
+  duplicarla — se extrajo `registrarCompraEnTx(tx, input)` (recibe el `tx` de la transacción en
+  vez de abrir una propia) de la que ahora cuelgan tanto `registrarCompra` (abre su propia
+  transacción de una sola línea, sin cambios de comportamiento) como `registrarCompraLote`
+  (abre una transacción y llama `registrarCompraEnTx` en un loop, una vez por línea, con el
+  proveedor/fecha del lote aplicados a cada una). Probado end-to-end: lote de 2 líneas (un
+  producto existente + un producto nuevo) registró ambas compras, el producto nuevo quedó creado
+  con el proveedor del lote, y una venta posterior del producto existente tomó como costo la
+  compra más reciente (la del lote), no el promedio ponderado — confirmando que también quedó
+  bien conectado con el cambio de Ganancia de este mismo batch.
 
 ### Identidad de marca — COMPLETO (2026-08-02)
 

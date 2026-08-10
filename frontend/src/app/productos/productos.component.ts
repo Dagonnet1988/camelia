@@ -32,6 +32,25 @@ export class ProductosComponent implements OnInit {
     return Array.from(set).sort();
   });
 
+  busqueda = signal('');
+  productosFiltrados = computed(() => {
+    const q = this.busqueda().trim().toLowerCase();
+    if (!q) return this.productos();
+    return this.productos().filter(
+      (p) => p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q),
+    );
+  });
+
+  // Autocompletado de la barra de busqueda: nombre y codigo de los productos ya registrados.
+  busquedaSugerencias = computed(() => {
+    const set = new Set<string>();
+    for (const p of this.productos()) {
+      set.add(p.nombre);
+      set.add(p.codigo);
+    }
+    return Array.from(set).sort();
+  });
+
   form: EdicionProducto = { nombre: '', categoria: '', valorVenta: null, stockMinimo: 0, proveedor: '' };
 
   archivosFoto: File[] = [];

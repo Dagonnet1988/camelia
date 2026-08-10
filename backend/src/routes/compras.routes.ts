@@ -20,6 +20,21 @@ const registrarCompraSchema = z.object({
   productoNuevo: productoNuevoSchema.optional(),
 });
 
+const registrarCompraLoteSchema = z.object({
+  proveedor: z.string().min(1).optional(),
+  fechaCompra: z.coerce.date().optional(),
+  lineas: z
+    .array(
+      z.object({
+        codigoProducto: z.string().min(1),
+        cantidad: z.number().int().positive(),
+        valorCompraUnitario: z.number().positive(),
+        productoNuevo: productoNuevoSchema.optional(),
+      }),
+    )
+    .min(1),
+});
+
 const actualizarCompraSchema = z.object({
   codigoProducto: z.string().min(1).optional(),
   cantidad: z.number().int().positive(),
@@ -44,6 +59,15 @@ comprasRouter.post(
   asyncHandler(async (req, res) => {
     const compra = await comprasService.registrarCompra(req.body);
     res.status(201).json(compra);
+  }),
+);
+
+comprasRouter.post(
+  "/lote",
+  validateBody(registrarCompraLoteSchema),
+  asyncHandler(async (req, res) => {
+    const compras = await comprasService.registrarCompraLote(req.body);
+    res.status(201).json(compras);
   }),
 );
 

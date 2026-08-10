@@ -16,7 +16,24 @@
 }
 
 <section class="card">
-  <h2>Productos ({{ productos().length }})</h2>
+  <h2>Productos ({{ productosFiltrados().length }})</h2>
+
+  <div class="field" style="max-width: 320px; margin-bottom: 14px">
+    <label>Buscar por nombre o codigo</label>
+    <input
+      type="search"
+      placeholder="Aretes Luna, ARE-01…"
+      list="productos-busqueda-sugerencias"
+      [ngModel]="busqueda()"
+      (ngModelChange)="busqueda.set($event)"
+    />
+    <datalist id="productos-busqueda-sugerencias">
+      @for (s of busquedaSugerencias(); track s) {
+        <option [value]="s"></option>
+      }
+    </datalist>
+  </div>
+
   <div class="table-scroll">
     <table>
       <thead>
@@ -35,7 +52,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (p of productos(); track p.codigo; let i = $index) {
+        @for (p of productosFiltrados(); track p.codigo; let i = $index) {
           <tr>
             <td>{{ i + 1 }}</td>
             <td>{{ p.codigo }}</td>

@@ -27,6 +27,19 @@ export interface ActualizarCompraInput {
   fechaCompra: Date;
 }
 
+export interface LineaCompraLote {
+  codigoProducto: string;
+  cantidad: number;
+  valorCompraUnitario: number;
+  productoNuevo?: ProductoNuevoInput;
+}
+
+export interface RegistrarCompraLoteInput {
+  proveedor?: string;
+  fechaCompra?: Date;
+  lineas: LineaCompraLote[];
+}
+
 export function listarCompras(codigoProducto?: string) {
   return prisma.compraInventario.findMany({
     where: codigoProducto ? { codigoProducto } : undefined,
@@ -34,58 +47,94 @@ export function listarCompras(codigoProducto?: string) {
   });
 }
 
-export async function registrarCompra(input: RegistrarCompraInput) {
-  return prisma.$transaction(async (tx) => {
-    let producto = await tx.producto.findUnique({ where: { codigo: input.codigoProducto } });
+/** Costo de la compra mas reciente de un producto (o null si nunca se le ha comprado). */
+export async function costoUltimaCompra(tx: Prisma.TransactionClient, codigoProducto: string) {
+  const ultima = await tx.compraInventario.findFirst({
+    where: { codigoProducto },
+    orderBy: [{ fechaCompra: "desc" }, { id: "desc" }],
+    select: { valorCompraUnitario: true },
+  });
+  return ultima?.valorCompraUnitario ?? null;
+}
 
-    if (!producto) {
-      if (!input.productoNuevo) {
-        throw new ApiError(
-          404,
-          `Producto ${input.codigoProducto} no existe. Incluye productoNuevo (nombre, categoria, valorVenta) para crearlo con esta compra.`,
-        );
-      }
-      producto = await tx.producto.create({
-        data: {
-          codigo: input.codigoProducto,
-          nombre: input.productoNuevo.nombre,
-          categoria: input.productoNuevo.categoria,
-          valorVenta: input.productoNuevo.valorVenta,
-          stockMinimo: input.productoNuevo.stockMinimo ?? 0,
-        },
-      });
+async function registrarCompraEnTx(tx: Prisma.TransactionClient, input: RegistrarCompraInput) {
+  let producto = await tx.producto.findUnique({ where: { codigo: input.codigoProducto } });
+
+  if (!producto) {
+    if (!input.productoNuevo) {
+      throw new ApiError(
+        404,
+        `Producto ${input.codigoProducto} no existe. Incluye productoNuevo (nombre, categoria, valorVenta) para crearlo con esta compra.`,
+      );
     }
-
-    const stockPrevio = producto.stockActual;
-    const costoPrevio = producto.costoPromedio;
-    const cantidad = new Prisma.Decimal(input.cantidad);
-    const valorCompraUnitario = new Prisma.Decimal(input.valorCompraUnitario);
-
-    const stockNuevo = stockPrevio + input.cantidad;
-    const costoNuevo = stockNuevo === 0
-      ? new Prisma.Decimal(0)
-      : costoPrevio
-          .mul(stockPrevio)
-          .add(cantidad.mul(valorCompraUnitario))
-          .div(stockNuevo);
-
-    await tx.producto.update({
-      where: { codigo: input.codigoProducto },
+    producto = await tx.producto.create({
       data: {
-        stockActual: stockNuevo,
-        costoPromedio: costoNuevo,
-      },
-    });
-
-    return tx.compraInventario.create({
-      data: {
-        codigoProducto: input.codigoProducto,
-        cantidad: input.cantidad,
-        valorCompraUnitario: input.valorCompraUnitario,
+        codigo: input.codigoProducto,
+        nombre: input.productoNuevo.nombre,
+        categoria: input.productoNuevo.categoria,
+        valorVenta: input.productoNuevo.valorVenta,
+        stockMinimo: input.productoNuevo.stockMinimo ?? 0,
+        // El producto hereda el proveedor de esta primera compra - dato propio del producto,
+        // editable despues desde Productos (distinto del proveedor historico por compra).
         proveedor: input.proveedor,
-        ...(input.fechaCompra ? { fechaCompra: input.fechaCompra } : {}),
       },
     });
+  }
+
+  const stockPrevio = producto.stockActual;
+  const costoPrevio = producto.costoPromedio;
+  const cantidad = new Prisma.Decimal(input.cantidad);
+  const valorCompraUnitario = new Prisma.Decimal(input.valorCompraUnitario);
+
+  const stockNuevo = stockPrevio + input.cantidad;
+  const costoNuevo = stockNuevo === 0
+    ? new Prisma.Decimal(0)
+    : costoPrevio
+        .mul(stockPrevio)
+        .add(cantidad.mul(valorCompraUnitario))
+        .div(stockNuevo);
+
+  await tx.producto.update({
+    where: { codigo: input.codigoProducto },
+    data: {
+      stockActual: stockNuevo,
+      costoPromedio: costoNuevo,
+    },
+  });
+
+  return tx.compraInventario.create({
+    data: {
+      codigoProducto: input.codigoProducto,
+      cantidad: input.cantidad,
+      valorCompraUnitario: input.valorCompraUnitario,
+      proveedor: input.proveedor,
+      ...(input.fechaCompra ? { fechaCompra: input.fechaCompra } : {}),
+    },
+  });
+}
+
+export async function registrarCompra(input: RegistrarCompraInput) {
+  return prisma.$transaction((tx) => registrarCompraEnTx(tx, input));
+}
+
+/** Compra por lote: un proveedor/fecha compartidos, muchas lineas (productos) en una sola
+ * transaccion - o se registran todas, o ninguna. Reutiliza registrarCompraEnTx por linea. */
+export async function registrarCompraLote(input: RegistrarCompraLoteInput) {
+  return prisma.$transaction(async (tx) => {
+    const resultados = [];
+    for (const linea of input.lineas) {
+      resultados.push(
+        await registrarCompraEnTx(tx, {
+          codigoProducto: linea.codigoProducto,
+          cantidad: linea.cantidad,
+          valorCompraUnitario: linea.valorCompraUnitario,
+          proveedor: input.proveedor,
+          fechaCompra: input.fechaCompra,
+          productoNuevo: linea.productoNuevo,
+        }),
+      );
+    }
+    return resultados;
   });
 }
 

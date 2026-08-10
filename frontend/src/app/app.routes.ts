@@ -4,6 +4,7 @@ import { ComisionesComponent } from './comisiones/comisiones.component';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { ProductosComponent } from './productos/productos.component';
 import { ComprasComponent } from './compras/compras.component';
+import { CompraLoteComponent } from './compra-lote/compra-lote.component';
 import { CompradoresComponent } from './compradores/compradores.component';
 import { VentasComponent } from './ventas/ventas.component';
 import { WhatsappComponent } from './whatsapp/whatsapp.component';
@@ -21,6 +22,7 @@ export const routes: Routes = [
   { path: 'dashboard', component: DashboardComponent, canActivate: [managerGuard] },
   { path: 'productos', component: ProductosComponent, canActivate: [authGuard] },
   { path: 'compras', component: ComprasComponent, canActivate: [authGuard] },
+  { path: 'compras/lote', component: CompraLoteComponent, canActivate: [authGuard] },
   { path: 'comisiones', component: ComisionesComponent, canActivate: [managerGuard] },
   { path: 'compradores', component: CompradoresComponent, canActivate: [authGuard] },
   { path: 'ventas', component: VentasComponent, canActivate: [authGuard] },

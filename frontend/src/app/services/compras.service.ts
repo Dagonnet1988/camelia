@@ -1,6 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import type { ActualizarCompraInput, CompraInventario, RegistrarCompraInput } from '../models/domain.models';
+import type {
+  ActualizarCompraInput,
+  CompraInventario,
+  RegistrarCompraInput,
+  RegistrarCompraLoteInput,
+} from '../models/domain.models';
 
 const BASE = '/api/compras';
 
@@ -16,6 +21,10 @@ export class ComprasService {
 
   registrar(input: RegistrarCompraInput) {
     return this.http.post<CompraInventario>(BASE, input);
+  }
+
+  registrarLote(input: RegistrarCompraLoteInput) {
+    return this.http.post<CompraInventario[]>(`${BASE}/lote`, input);
   }
 
   actualizar(id: number, input: ActualizarCompraInput) {

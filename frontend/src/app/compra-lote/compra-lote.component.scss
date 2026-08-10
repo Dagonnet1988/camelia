@@ -1,0 +1,47 @@
+:host {
+  display: block;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+@media (max-width: 640px) {
+  :host {
+    padding: 16px;
+  }
+}
+
+.producto-nuevo-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.linea-lote {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.linea-lote-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+
+  strong {
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+}
+
+.linea-lote-acciones {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}

@@ -43,10 +43,10 @@ export interface CrearProductoInput {
 }
 
 export interface ActualizarProductoInput {
-  nombre: string;
-  categoria: Categoria;
-  valorVenta: number;
-  stockMinimo: number;
+  nombre?: string;
+  categoria?: Categoria;
+  valorVenta?: number;
+  stockMinimo?: number;
   proveedor?: string;
 }
 
@@ -78,6 +78,19 @@ export interface RegistrarCompraInput {
   valorCompraUnitario: number;
   proveedor?: string;
   productoNuevo?: ProductoNuevoInput;
+}
+
+export interface LineaCompraLoteInput {
+  codigoProducto: string;
+  cantidad: number;
+  valorCompraUnitario: number;
+  productoNuevo?: ProductoNuevoInput;
+}
+
+export interface RegistrarCompraLoteInput {
+  proveedor?: string;
+  fechaCompra?: string;
+  lineas: LineaCompraLoteInput[];
 }
 
 export interface ActualizarCompraInput {

@@ -1,6 +1,6 @@
 <header class="page-header">
   <h1>Compras de inventario</h1>
-  <p>Registra el reabastecimiento de stock — recalcula el costo promedio ponderado</p>
+  <p>Registra el reabastecimiento de stock</p>
 </header>
 
 <section class="card">
@@ -12,6 +12,11 @@
   @if (exito()) {
     <div class="alert-ok">{{ exito() }}</div>
   }
+
+  <p class="hint" style="margin-bottom: 14px">
+    ¿Vas a registrar varios productos de un mismo proveedor?
+    <a routerLink="/compras/lote">Usa la compra por lote →</a>
+  </p>
 
   <label class="producto-nuevo-toggle" style="margin-bottom: 14px">
     <input
@@ -81,7 +86,24 @@
 </section>
 
 <section class="card" style="margin-top: 20px">
-  <h2>Historial de compras</h2>
+  <h2>Historial de compras ({{ comprasFiltradas().length }})</h2>
+
+  <div class="field" style="max-width: 320px; margin-bottom: 14px">
+    <label>Buscar por nombre o codigo</label>
+    <input
+      type="search"
+      placeholder="Aretes Luna, ARE-01…"
+      list="compras-busqueda-sugerencias"
+      [ngModel]="busqueda()"
+      (ngModelChange)="busqueda.set($event)"
+    />
+    <datalist id="compras-busqueda-sugerencias">
+      @for (s of busquedaSugerencias(); track s) {
+        <option [value]="s"></option>
+      }
+    </datalist>
+  </div>
+
   <div class="table-scroll">
     <table>
       <thead>
@@ -99,7 +121,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (c of compras(); track c.id; let i = $index) {
+        @for (c of comprasFiltradas(); track c.id; let i = $index) {
           <tr>
             <td>{{ i + 1 }}</td>
             <td>{{ c.codigoProducto }}</td>
@@ -124,9 +146,9 @@
   <div class="modal-backdrop" (click)="cancelarEdicionCompra()">
     <div class="modal-panel" (click)="$event.stopPropagation()">
       <button class="modal-close" type="button" (click)="cancelarEdicionCompra()" aria-label="Cerrar">×</button>
-      <h2>Editar compra #{{ editandoCompraId() }}</h2>
+      <h2>Editar compra</h2>
       <p class="hint">
-        Recalcula el costo promedio del producto (o de ambos productos, si la reasignas)
+        Recalcula el stock y el costo del producto (o de ambos productos, si lo reasignas)
         repasando todo el historial de compras — puede tardar un instante si hay muchas
         compras registradas.
       </p>
@@ -142,11 +164,24 @@
         <div class="form-grid">
           <div class="field">
             <label>Producto</label>
-            <select name="codigoProductoEdicion" [(ngModel)]="formEdicion.codigoProducto" required>
+            <select
+              name="codigoProductoEdicion"
+              [(ngModel)]="formEdicion.codigoProducto"
+              (change)="onCambioProductoEdicion()"
+              required
+            >
               @for (p of productos(); track p.codigo) {
                 <option [value]="p.codigo">{{ p.nombre }} ({{ p.codigo }})</option>
               }
             </select>
+          </div>
+          <div class="field">
+            <label>Categoria</label>
+            <input name="categoriaEdicion" [(ngModel)]="formEdicion.categoria" list="categorias-sugeridas-compras" required />
+          </div>
+          <div class="field">
+            <label>Valor de venta</label>
+            <input type="number" name="valorVentaEdicion" [(ngModel)]="formEdicion.valorVenta" min="0" required />
           </div>
           <div class="field">
             <label>Cantidad</label>

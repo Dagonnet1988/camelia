@@ -3,6 +3,7 @@ import type { Canal, FrecuenciaCuotas, MedioPago } from "../generated/prisma/enu
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../lib/http";
 import { comoBogota } from "../lib/fecha-bogota";
+import { costoUltimaCompra } from "./compras.service";
 
 const DIAS_POR_FRECUENCIA: Record<FrecuenciaCuotas, number> = {
   semanal: 7,
@@ -134,7 +135,12 @@ export async function registrarVenta(input: RegistrarVentaInput) {
     const valorContado =
       input.valorContado !== undefined ? new Prisma.Decimal(input.valorContado) : producto.valorVenta.mul(cantidad);
     const valorTotalVenta = valorContado.add(recargoCuotas);
-    const costoPromedioAlMomento = producto.costoPromedio;
+    // El nombre del campo (costo_promedio_al_momento) es historico: la ganancia se calcula con
+    // el costo de la compra mas reciente del producto, no con el promedio ponderado (pedido
+    // explicito del usuario - el promedio "no refleja lo que realmente costo ese stock"). Si el
+    // producto no tiene ninguna compra registrada (no deberia pasar, todo producto nace de una
+    // Compra), cae de vuelta al promedio ponderado solo para no dejar la venta sin costo.
+    const costoPromedioAlMomento = (await costoUltimaCompra(tx, input.codigoProducto)) ?? producto.costoPromedio;
     const ganancia = valorTotalVenta.sub(costoPromedioAlMomento.mul(cantidad));
     const comisionPorcentaje = vendedor?.porcentajeComision ?? new Prisma.Decimal(0);
     const comision = valorTotalVenta.mul(comisionPorcentaje).div(100);

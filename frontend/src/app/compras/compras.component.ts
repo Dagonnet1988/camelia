@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import type { Categoria, CompraInventario, Producto } from '../models/domain.models';
 import { ComprasService } from '../services/compras.service';
 import { ProductosService } from '../services/productos.service';
@@ -19,6 +20,8 @@ interface EdicionCompraForm {
   valorCompraUnitario: number | null;
   proveedor: string;
   fechaCompra: string;
+  valorVenta: number | null;
+  categoria: Categoria;
 }
 
 interface ProductoNuevoForm {
@@ -46,7 +49,7 @@ const PRODUCTO_NUEVO_VACIO: ProductoNuevoForm = {
 
 @Component({
   selector: 'app-compras',
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, RouterLink],
   templateUrl: './compras.component.html',
   styleUrl: './compras.component.scss',
 })
@@ -76,7 +79,29 @@ export class ComprasComponent implements OnInit {
     valorCompraUnitario: null,
     proveedor: '',
     fechaCompra: '',
+    valorVenta: null,
+    categoria: '',
   };
+
+  busqueda = signal('');
+  comprasFiltradas = computed(() => {
+    const q = this.busqueda().trim().toLowerCase();
+    if (!q) return this.compras();
+    return this.compras().filter((c) => {
+      const p = this.producto(c.codigoProducto);
+      return c.codigoProducto.toLowerCase().includes(q) || (p?.nombre.toLowerCase().includes(q) ?? false);
+    });
+  });
+
+  // Autocompletado de la barra de busqueda: nombre y codigo de los productos ya registrados.
+  busquedaSugerencias = computed(() => {
+    const set = new Set<string>();
+    for (const p of this.productos()) {
+      set.add(p.nombre);
+      set.add(p.codigo);
+    }
+    return Array.from(set).sort();
+  });
 
   constructor(
     private comprasService: ComprasService,
@@ -140,9 +165,7 @@ export class ComprasComponent implements OnInit {
       .subscribe({
         next: () => {
           this.exito.set(
-            this.esProductoNuevo()
-              ? `Producto ${codigoProducto} creado y compra registrada`
-              : 'Compra registrada — costo promedio actualizado',
+            this.esProductoNuevo() ? `Producto ${codigoProducto} creado y compra registrada` : 'Compra registrada',
           );
           this.guardando.set(false);
           this.form = { ...FORM_VACIO };
@@ -160,15 +183,27 @@ export class ComprasComponent implements OnInit {
 
   editarCompra(c: CompraInventario): void {
     this.editandoCompraId.set(c.id);
+    const p = this.producto(c.codigoProducto);
     this.formEdicion = {
       codigoProducto: c.codigoProducto,
       cantidad: c.cantidad,
       valorCompraUnitario: Number(c.valorCompraUnitario),
       proveedor: c.proveedor ?? '',
       fechaCompra: c.fechaCompra.slice(0, 10),
+      valorVenta: p ? Number(p.valorVenta) : null,
+      categoria: p?.categoria ?? '',
     };
     this.error.set(null);
     this.exito.set(null);
+  }
+
+  // Al reasignar la compra a otro producto, el precio/categoria mostrados deben reflejar el
+  // producto recien seleccionado, no quedar con los valores del producto original.
+  onCambioProductoEdicion(): void {
+    const p = this.producto(this.formEdicion.codigoProducto);
+    if (!p) return;
+    this.formEdicion.valorVenta = Number(p.valorVenta);
+    this.formEdicion.categoria = p.categoria;
   }
 
   cancelarEdicionCompra(): void {
@@ -185,9 +220,11 @@ export class ComprasComponent implements OnInit {
       !this.formEdicion.codigoProducto ||
       !this.formEdicion.cantidad ||
       !this.formEdicion.valorCompraUnitario ||
-      !this.formEdicion.fechaCompra
+      !this.formEdicion.fechaCompra ||
+      this.formEdicion.valorVenta === null ||
+      !this.formEdicion.categoria
     ) {
-      this.error.set('Producto, cantidad, valor unitario y fecha son obligatorios');
+      this.error.set('Producto, cantidad, valor unitario, fecha, categoria y valor de venta son obligatorios');
       return;
     }
 
@@ -202,11 +239,28 @@ export class ComprasComponent implements OnInit {
       })
       .subscribe({
         next: () => {
-          this.exito.set(`Compra #${id} actualizada — costo promedio recalculado`);
-          this.guardandoEdicion.set(false);
-          this.editandoCompraId.set(null);
-          this.cargarCompras();
-          this.productosService.listar().subscribe((data) => this.productos.set(data));
+          // Categoria y valor de venta son datos del producto, no de la compra en si - se
+          // guardan aparte contra /api/productos una vez la compra quedo bien.
+          this.productosService
+            .actualizar(this.formEdicion.codigoProducto, {
+              categoria: this.formEdicion.categoria,
+              valorVenta: this.formEdicion.valorVenta as number,
+            })
+            .subscribe({
+              next: () => {
+                this.exito.set('Compra actualizada');
+                this.guardandoEdicion.set(false);
+                this.editandoCompraId.set(null);
+                this.cargarCompras();
+                this.productosService.listar().subscribe((data) => this.productos.set(data));
+              },
+              error: (err) => {
+                this.error.set(extractError(err));
+                this.guardandoEdicion.set(false);
+                this.cargarCompras();
+                this.productosService.listar().subscribe((data) => this.productos.set(data));
+              },
+            });
         },
         error: (err) => {
           this.error.set(extractError(err));

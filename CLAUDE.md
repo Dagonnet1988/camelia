@@ -562,6 +562,48 @@ precio de venta.
   `styles.scss` (borde superior, negrita) reutilizable por cualquier otra tabla que necesite una
   fila de totales en el futuro.
 
+### Productos y Compras: orden por nombre, numeración de filas, edición en modal — COMPLETO (2026-08-09)
+
+Pedido explícito del usuario: en Productos y Compras, ordenar por nombre del producto y agregar
+una columna de numeración (1, 2, 3…) a cada tabla; además, que en Compras se pueda editar
+**todos** los campos de una compra (antes no se podía reasignar a otro producto), y que en
+ambas páginas el formulario de edición no quede fijo arriba de la vista — el usuario aceptó
+explícitamente que fuera "una ventana flotante" en vez de una fila inline, la opción más simple
+de implementar de forma robusta (evita el manejo de `colspan` dinámico dentro de la tabla).
+
+- **Orden:** `productos.service.ts` (`listarProductos`) cambió `orderBy: { codigo: "asc" }` a
+  `{ nombre: "asc" }`. `compras.service.ts` (`listarCompras`) cambió `orderBy: { fechaCompra:
+  "desc" }` a `orderBy: [{ producto: { nombre: "asc" } }, { fechaCompra: "desc" }]` (ordena por
+  nombre de producto vía la relación, con fecha descendente como criterio secundario dentro del
+  mismo producto) — Prisma soporta `orderBy` anidado sobre una relación *-a-uno.
+- **Numeración:** columna `#` nueva al inicio de ambas tablas, usando el `$index` implícito del
+  `@for` de Angular (`let i = $index`, `{{ i + 1 }}`) — no requirió cambios de backend.
+- **Editar compra: todos los campos, incluida la reasignación de producto.**
+  `ActualizarCompraInput` ganó `codigoProducto?: string` (opcional — si no se manda, se conserva
+  el producto original). `actualizarCompra` en `compras.service.ts` se reestructuró extrayendo
+  `recalcularProducto(tx, codigoProducto)` (la misma lógica de repasar todo el historial de
+  compras en orden cronológico que ya existía, ahora factorizada en una función reutilizable).
+  Si `codigoProducto` cambia, se recalculan **los dos productos** dentro de la misma transacción
+  — el de origen (ya sin esa compra) y el de destino (ahora con ella) — cada uno con su propio
+  guard de stock negativo. Probado end-to-end vía API: mover una compra de `SEED-ARE-01` (stock
+  24) a `SEED-ARE-02` (stock 11) dejó origen en 4 y destino en 31, con el costo promedio
+  ponderado de ambos recalculado correctamente; revertir el cambio devolvió a los dos productos
+  exactamente a sus valores originales. También se confirmó que el guard de stock negativo se
+  dispara igual al reasignar (probado con una compra cuyo producto de origen no tenía suficiente
+  stock para cubrir lo ya vendido).
+- **Formularios de edición como modal flotante:** el shell de modal que ya existía solo para el
+  login (`.modal-backdrop`/`.modal-panel`/`.modal-close`, antes en `app.scss`, con ámbito
+  exclusivo al componente `App`) se promovió a `styles.scss` (global) para poder reutilizarlo en
+  Productos y Compras — se ensanchó el `max-width` por defecto (340px → 480px, más cómodo para
+  formularios con más campos) y se agregó `max-height: calc(100vh - 48px)` + `overflow-y: auto`
+  al panel (por si el formulario de Productos, con la sección de fotos, no cabe en pantallas
+  bajas), preservando el ancho angosto original del login vía una clase modificadora
+  `.modal-panel-angosto`. `productos.component.html` y `compras.component.html` movieron sus
+  tarjetas de edición (antes fijas arriba de la tabla) a este modal, controlado por las mismas
+  señales que ya existían (`editandoCodigo()` / `editandoCompraId()`) — cerrar con la × o con
+  clic en el fondo llama al mismo método `cancelarEdicion()`/`cancelarEdicionCompra()` de
+  siempre.
+
 ### Identidad de marca — COMPLETO (2026-08-02)
 
 Assets de marca ya existentes en `frontend/public/brand/files/` (logo maestro, monograma,

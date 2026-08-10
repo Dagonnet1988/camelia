@@ -14,6 +14,7 @@ interface CompraForm {
 }
 
 interface EdicionCompraForm {
+  codigoProducto: string;
   cantidad: number | null;
   valorCompraUnitario: number | null;
   proveedor: string;
@@ -69,7 +70,13 @@ export class ComprasComponent implements OnInit {
 
   editandoCompraId = signal<number | null>(null);
   guardandoEdicion = signal(false);
-  formEdicion: EdicionCompraForm = { cantidad: null, valorCompraUnitario: null, proveedor: '', fechaCompra: '' };
+  formEdicion: EdicionCompraForm = {
+    codigoProducto: '',
+    cantidad: null,
+    valorCompraUnitario: null,
+    proveedor: '',
+    fechaCompra: '',
+  };
 
   constructor(
     private comprasService: ComprasService,
@@ -154,6 +161,7 @@ export class ComprasComponent implements OnInit {
   editarCompra(c: CompraInventario): void {
     this.editandoCompraId.set(c.id);
     this.formEdicion = {
+      codigoProducto: c.codigoProducto,
       cantidad: c.cantidad,
       valorCompraUnitario: Number(c.valorCompraUnitario),
       proveedor: c.proveedor ?? '',
@@ -173,14 +181,20 @@ export class ComprasComponent implements OnInit {
     this.error.set(null);
     this.exito.set(null);
 
-    if (!this.formEdicion.cantidad || !this.formEdicion.valorCompraUnitario || !this.formEdicion.fechaCompra) {
-      this.error.set('Cantidad, valor unitario y fecha son obligatorios');
+    if (
+      !this.formEdicion.codigoProducto ||
+      !this.formEdicion.cantidad ||
+      !this.formEdicion.valorCompraUnitario ||
+      !this.formEdicion.fechaCompra
+    ) {
+      this.error.set('Producto, cantidad, valor unitario y fecha son obligatorios');
       return;
     }
 
     this.guardandoEdicion.set(true);
     this.comprasService
       .actualizar(id, {
+        codigoProducto: this.formEdicion.codigoProducto,
         cantidad: this.formEdicion.cantidad,
         valorCompraUnitario: this.formEdicion.valorCompraUnitario,
         proveedor: this.formEdicion.proveedor || undefined,

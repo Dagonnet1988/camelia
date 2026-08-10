@@ -80,49 +80,13 @@
   </form>
 </section>
 
-@if (editandoCompraId()) {
-  <section class="card" style="margin-top: 20px">
-    <h2>Editar compra #{{ editandoCompraId() }}</h2>
-    <p class="hint">
-      Recalcula el costo promedio del producto repasando todo su historial de compras — puede
-      tardar un instante si el producto tiene muchas compras registradas.
-    </p>
-
-    <form (ngSubmit)="guardarEdicionCompra()">
-      <div class="form-grid">
-        <div class="field">
-          <label>Cantidad</label>
-          <input type="number" name="cantidadEdicion" [(ngModel)]="formEdicion.cantidad" min="1" required />
-        </div>
-        <div class="field">
-          <label>Valor de compra (unitario)</label>
-          <input type="number" name="valorCompraUnitarioEdicion" [(ngModel)]="formEdicion.valorCompraUnitario" min="0" required />
-        </div>
-        <div class="field">
-          <label>Proveedor (opcional)</label>
-          <input name="proveedorEdicion" [(ngModel)]="formEdicion.proveedor" />
-        </div>
-        <div class="field">
-          <label>Fecha</label>
-          <input type="date" name="fechaCompraEdicion" [(ngModel)]="formEdicion.fechaCompra" required />
-        </div>
-        <div class="field">
-          <button class="btn" type="submit" [disabled]="guardandoEdicion()">Guardar cambios</button>
-        </div>
-        <div class="field">
-          <button class="btn btn-secondary" type="button" (click)="cancelarEdicionCompra()">Cancelar</button>
-        </div>
-      </div>
-    </form>
-  </section>
-}
-
 <section class="card" style="margin-top: 20px">
   <h2>Historial de compras</h2>
   <div class="table-scroll">
     <table>
       <thead>
         <tr>
+          <th>#</th>
           <th>Codigo</th>
           <th>Producto</th>
           <th>Categoria</th>
@@ -135,8 +99,9 @@
         </tr>
       </thead>
       <tbody>
-        @for (c of compras(); track c.id) {
+        @for (c of compras(); track c.id; let i = $index) {
           <tr>
+            <td>{{ i + 1 }}</td>
             <td>{{ c.codigoProducto }}</td>
             <td>{{ nombreProducto(c.codigoProducto) }}</td>
             <td>{{ producto(c.codigoProducto)?.categoria ?? '—' }}</td>
@@ -154,3 +119,59 @@
     </table>
   </div>
 </section>
+
+@if (editandoCompraId()) {
+  <div class="modal-backdrop" (click)="cancelarEdicionCompra()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <button class="modal-close" type="button" (click)="cancelarEdicionCompra()" aria-label="Cerrar">×</button>
+      <h2>Editar compra #{{ editandoCompraId() }}</h2>
+      <p class="hint">
+        Recalcula el costo promedio del producto (o de ambos productos, si la reasignas)
+        repasando todo el historial de compras — puede tardar un instante si hay muchas
+        compras registradas.
+      </p>
+
+      @if (error()) {
+        <div class="alert-error">{{ error() }}</div>
+      }
+      @if (exito()) {
+        <div class="alert-ok">{{ exito() }}</div>
+      }
+
+      <form (ngSubmit)="guardarEdicionCompra()">
+        <div class="form-grid">
+          <div class="field">
+            <label>Producto</label>
+            <select name="codigoProductoEdicion" [(ngModel)]="formEdicion.codigoProducto" required>
+              @for (p of productos(); track p.codigo) {
+                <option [value]="p.codigo">{{ p.nombre }} ({{ p.codigo }})</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label>Cantidad</label>
+            <input type="number" name="cantidadEdicion" [(ngModel)]="formEdicion.cantidad" min="1" required />
+          </div>
+          <div class="field">
+            <label>Valor de compra (unitario)</label>
+            <input type="number" name="valorCompraUnitarioEdicion" [(ngModel)]="formEdicion.valorCompraUnitario" min="0" required />
+          </div>
+          <div class="field">
+            <label>Proveedor (opcional)</label>
+            <input name="proveedorEdicion" [(ngModel)]="formEdicion.proveedor" />
+          </div>
+          <div class="field">
+            <label>Fecha</label>
+            <input type="date" name="fechaCompraEdicion" [(ngModel)]="formEdicion.fechaCompra" required />
+          </div>
+          <div class="field">
+            <button class="btn" type="submit" [disabled]="guardandoEdicion()">Guardar cambios</button>
+          </div>
+          <div class="field">
+            <button class="btn btn-secondary" type="button" (click)="cancelarEdicionCompra()">Cancelar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+}

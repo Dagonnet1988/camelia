@@ -47,7 +47,7 @@
 
 @if (mostrarLogin()) {
   <div class="modal-backdrop" (click)="mostrarLogin.set(false)">
-    <div class="modal-panel" (click)="$event.stopPropagation()">
+    <div class="modal-panel modal-panel-angosto" (click)="$event.stopPropagation()">
       <button class="modal-close" type="button" (click)="mostrarLogin.set(false)" aria-label="Cerrar">×</button>
       <app-login-form (ingresado)="onIngresado($event)" />
     </div>

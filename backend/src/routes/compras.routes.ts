@@ -21,6 +21,7 @@ const registrarCompraSchema = z.object({
 });
 
 const actualizarCompraSchema = z.object({
+  codigoProducto: z.string().min(1).optional(),
   cantidad: z.number().int().positive(),
   valorCompraUnitario: z.number().positive(),
   proveedor: z.string().min(1).optional(),

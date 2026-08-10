@@ -81,6 +81,7 @@ export interface RegistrarCompraInput {
 }
 
 export interface ActualizarCompraInput {
+  codigoProducto?: string;
   cantidad: number;
   valorCompraUnitario: number;
   proveedor?: string;

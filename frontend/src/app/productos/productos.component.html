@@ -6,84 +6,7 @@
   </p>
 </header>
 
-@if (puedeEditar && editandoCodigo()) {
-  <section class="card">
-    <h2>Editar producto</h2>
-
-    @if (error()) {
-      <div class="alert-error">{{ error() }}</div>
-    }
-    @if (exito()) {
-      <div class="alert-ok">{{ exito() }}</div>
-    }
-
-    <form (ngSubmit)="guardar()">
-      <div class="form-grid">
-        <div class="field">
-          <label>Codigo (SKU)</label>
-          <input [value]="editandoCodigo()" disabled />
-        </div>
-        <div class="field">
-          <label>Nombre</label>
-          <input name="nombre" [(ngModel)]="form.nombre" required />
-        </div>
-        <div class="field">
-          <label>Categoria</label>
-          <input name="categoria" [(ngModel)]="form.categoria" list="categorias-sugeridas" required />
-          <datalist id="categorias-sugeridas">
-            @for (c of categoriasSugeridas(); track c) {
-              <option [value]="c"></option>
-            }
-          </datalist>
-        </div>
-        <div class="field">
-          <label>Valor de venta</label>
-          <input type="number" name="valorVenta" [(ngModel)]="form.valorVenta" min="0" required />
-        </div>
-        <div class="field">
-          <label>Stock minimo</label>
-          <input type="number" name="stockMinimo" [(ngModel)]="form.stockMinimo" min="0" />
-        </div>
-        <div class="field">
-          <label>Proveedor</label>
-          <input name="proveedor" [(ngModel)]="form.proveedor" placeholder="Opcional" />
-        </div>
-        <div class="field">
-          <button class="btn" type="submit" [disabled]="guardando()">Guardar cambios</button>
-        </div>
-        <div class="field">
-          <button class="btn btn-secondary" type="button" (click)="cancelarEdicion()">Cancelar</button>
-        </div>
-      </div>
-    </form>
-
-    <div class="fotos-producto">
-      <h3>Fotos (catálogo público)</h3>
-      @if (fotosDelProductoEditado.length > 0) {
-        <div class="fotos-lista">
-          @for (f of fotosDelProductoEditado; track f.id) {
-            <div class="foto-miniatura">
-              <img [src]="f.url" alt="" />
-              <button class="btn btn-danger" type="button" (click)="eliminarFoto(f)">Eliminar</button>
-            </div>
-          }
-        </div>
-      } @else {
-        <p class="hint">Este producto todavía no tiene fotos.</p>
-      }
-
-      <div class="field">
-        <label>Agregar fotos</label>
-        <input type="file" accept="image/png,image/jpeg,image/webp" multiple (change)="onArchivosSeleccionados($event)" />
-      </div>
-      <button class="btn" type="button" [disabled]="subiendoFotos() || archivosFoto.length === 0" (click)="subirFotos()">
-        Subir fotos
-      </button>
-    </div>
-  </section>
-}
-
-@if (!editandoCodigo() && (error() || exito())) {
+@if (error() || exito()) {
   @if (error()) {
     <div class="alert-error">{{ error() }}</div>
   }
@@ -92,12 +15,13 @@
   }
 }
 
-<section class="card" [style.margin-top.px]="puedeEditar && editandoCodigo() ? 20 : 0">
+<section class="card">
   <h2>Productos ({{ productos().length }})</h2>
   <div class="table-scroll">
     <table>
       <thead>
         <tr>
+          <th>#</th>
           <th>Codigo</th>
           <th>Nombre</th>
           <th>Categoria</th>
@@ -111,8 +35,9 @@
         </tr>
       </thead>
       <tbody>
-        @for (p of productos(); track p.codigo) {
+        @for (p of productos(); track p.codigo; let i = $index) {
           <tr>
+            <td>{{ i + 1 }}</td>
             <td>{{ p.codigo }}</td>
             <td>{{ p.nombre }}</td>
             <td>{{ p.categoria }}</td>
@@ -141,3 +66,83 @@
     </table>
   </div>
 </section>
+
+@if (puedeEditar && editandoCodigo()) {
+  <div class="modal-backdrop" (click)="cancelarEdicion()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <button class="modal-close" type="button" (click)="cancelarEdicion()" aria-label="Cerrar">×</button>
+      <h2>Editar producto</h2>
+
+      @if (error()) {
+        <div class="alert-error">{{ error() }}</div>
+      }
+      @if (exito()) {
+        <div class="alert-ok">{{ exito() }}</div>
+      }
+
+      <form (ngSubmit)="guardar()">
+        <div class="form-grid">
+          <div class="field">
+            <label>Codigo (SKU)</label>
+            <input [value]="editandoCodigo()" disabled />
+          </div>
+          <div class="field">
+            <label>Nombre</label>
+            <input name="nombre" [(ngModel)]="form.nombre" required />
+          </div>
+          <div class="field">
+            <label>Categoria</label>
+            <input name="categoria" [(ngModel)]="form.categoria" list="categorias-sugeridas" required />
+            <datalist id="categorias-sugeridas">
+              @for (c of categoriasSugeridas(); track c) {
+                <option [value]="c"></option>
+              }
+            </datalist>
+          </div>
+          <div class="field">
+            <label>Valor de venta</label>
+            <input type="number" name="valorVenta" [(ngModel)]="form.valorVenta" min="0" required />
+          </div>
+          <div class="field">
+            <label>Stock minimo</label>
+            <input type="number" name="stockMinimo" [(ngModel)]="form.stockMinimo" min="0" />
+          </div>
+          <div class="field">
+            <label>Proveedor</label>
+            <input name="proveedor" [(ngModel)]="form.proveedor" placeholder="Opcional" />
+          </div>
+          <div class="field">
+            <button class="btn" type="submit" [disabled]="guardando()">Guardar cambios</button>
+          </div>
+          <div class="field">
+            <button class="btn btn-secondary" type="button" (click)="cancelarEdicion()">Cancelar</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="fotos-producto">
+        <h3>Fotos (catálogo público)</h3>
+        @if (fotosDelProductoEditado.length > 0) {
+          <div class="fotos-lista">
+            @for (f of fotosDelProductoEditado; track f.id) {
+              <div class="foto-miniatura">
+                <img [src]="f.url" alt="" />
+                <button class="btn btn-danger" type="button" (click)="eliminarFoto(f)">Eliminar</button>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="hint">Este producto todavía no tiene fotos.</p>
+        }
+
+        <div class="field">
+          <label>Agregar fotos</label>
+          <input type="file" accept="image/png,image/jpeg,image/webp" multiple (change)="onArchivosSeleccionados($event)" />
+        </div>
+        <button class="btn" type="button" [disabled]="subiendoFotos() || archivosFoto.length === 0" (click)="subirFotos()">
+          Subir fotos
+        </button>
+      </div>
+    </div>
+  </div>
+}

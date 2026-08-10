@@ -22,7 +22,7 @@ export interface ActualizarProductoInput {
 
 export function listarProductos() {
   return prisma.producto.findMany({
-    orderBy: { codigo: "asc" },
+    orderBy: { nombre: "asc" },
     include: { fotos: { orderBy: { orden: "asc" } } },
   });
 }

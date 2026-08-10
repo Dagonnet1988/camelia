@@ -12,47 +12,6 @@
   flex: 1;
 }
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(11, 11, 11, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  z-index: 100;
-}
-
-.modal-panel {
-  width: 100%;
-  max-width: 340px;
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 28px 24px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-
-  .modal-close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 20px;
-    line-height: 1;
-    cursor: pointer;
-    padding: 4px 8px;
-
-    &:hover {
-      color: var(--text-primary);
-    }
-  }
-}
-
 .nav-toggle {
   display: none;
   margin-left: auto;

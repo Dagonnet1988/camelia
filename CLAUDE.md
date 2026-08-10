@@ -604,6 +604,58 @@ de implementar de forma robusta (evita el manejo de `colspan` dinámico dentro d
   clic en el fondo llama al mismo método `cancelarEdicion()`/`cancelarEdicionCompra()` de
   siempre.
 
+### Bug de timezone: fechas de venta/cuotas se guardaban hasta 5h (a veces 1 día) adelantadas — CORREGIDO (2026-08-09)
+
+Reportado por el usuario: registró datos el 8 de agosto y la fecha guardada ya mostraba 9 de
+agosto. **Causa raíz:** `fecha_venta`, `fecha_pago` y `fecha_vencimiento` son columnas Postgres
+`timestamp`/`date` **sin timezone** ("naive"). Prisma trata esas columnas como si siempre fueran
+UTC, tanto al leer como al escribir — **ignora el timezone de sesión de Postgres** (que sí está
+bien configurado en `America/Bogota`, tanto local como en producción, pero eso solo afecta a los
+defaults `DEFAULT CURRENT_TIMESTAMP` que resuelve el propio Postgres, no a los valores que la
+app arma en Node con `new Date()` y le pasa a Prisma). Colombia es UTC-5, así que cualquier venta
+o pago registrado en Node y escrito directamente quedaba con la hora UTC real en vez de la hora
+de Bogotá — 5 horas adelantada, y para cualquier evento después de las ~7pm, un día completo
+adelantado. El bug se **confirmó también en `fecha_vencimiento`** de las cuotas (`generarCuotas`
+en `ventas.service.ts`, que hacía la aritmética de "sumar N días" con getters/setters *locales*
+sobre un `Date` cuya semántica real ya no coincidía) — o sea, no era solo cosmético: podía
+adelantar un día el vencimiento real de una cuota para ventas nocturnas, afectando cuándo se
+marca "atrasada" y cuándo dispara el recordatorio de WhatsApp.
+
+**Nota importante:** el bug NO afecta a Compras — `fecha_compra` cuando se manda explícita viene
+de un `<input type="date">` (solo día, sin hora), y un string `"yyyy-mm-dd"` se parsea en JS
+como medianoche UTC, que es exactamente lo que Prisma termina escribiendo — coincide por
+construcción, sin necesidad de ningún ajuste.
+
+- **Fix (decisión explícita del usuario: corregir el código hacia adelante, sin migración de
+  base de datos ni corrección de datos históricos ya guardados):** `backend/src/lib/fecha-
+  bogota.ts`, función `comoBogota(instanteReal: Date): Date` — dado un instante real, devuelve
+  un `Date` desplazado -5h tal que sus **getters/setters UTC** (no los locales — deliberado, así
+  no depende de qué timezone tenga configurado el proceso Node del servidor) coinciden con la
+  hora de Bogotá. Ese valor se pasa directo a Prisma; cualquier aritmética de fechas posterior
+  sobre él debe usar getters/setters UTC, nunca locales.
+- `ventas.service.ts` (`registrarVenta`): `fechaVenta = input.fechaVenta ?? new Date()` ahora se
+  envuelve en `comoBogota(...)` — cubre tanto el caso real (venta sin fecha explícita, el 100%
+  de las ventas desde la UI hoy) como el caso interno del script de seed (que sí manda
+  `fechaVenta` explícita para simular ventas pasadas). `generarCuotas` se ajustó para sumar los
+  días de cada cuota con `getUTCDate()/setUTCDate()` en vez de `getDate()/setDate()`, ya que
+  ahora opera sobre un `Date` ya desplazado por `comoBogota()`.
+- `cuotas.service.ts` (`marcarCuotaPagada`): `fechaPago: new Date()` → `fechaPago:
+  comoBogota(new Date())`.
+- **Verificado en vivo** (con la hora real en 9:36pm Bogotá, la ventana exacta donde el bug se
+  manifestaba): se registró una venta real vía API y se confirmó en la fila cruda de Postgres
+  (`psql`) que `fecha_venta` quedó en `2026-08-09 21:37:57` (coincide exacto con la hora real,
+  antes habría quedado `2026-08-10 02:37:57`), y que `fecha_vencimiento` de sus cuotas cayó en
+  el día calendario correcto. Se repitió la verificación marcando una cuota como pagada
+  (`fecha_pago`) con el mismo resultado. Ambas pruebas se revirtieron después para no ensuciar
+  los datos de desarrollo.
+- **Alcance de lo que quedó SIN corregir, a propósito:** los registros históricos ya guardados
+  (sobre todo `ventas.fecha_venta`, ya que ese código siempre construía la fecha con el bug) se
+  dejaron intactos por decisión explícita del usuario — pueden seguir mostrando hasta 5h/1 día de
+  más para ventas anteriores a este fix. Otros `new Date()` de menor impacto (fecha_envio/
+  fecha_fin de envíos masivos de WhatsApp, fecha_creacion) tienen la misma clase de bug pero no
+  se tocaron — quedan fuera del alcance que el usuario aprobó (ventas, compras, vencimiento de
+  cuotas) y son metadata operativa de bajo riesgo, no registros financieros.
+
 ### Identidad de marca — COMPLETO (2026-08-02)
 
 Assets de marca ya existentes en `frontend/public/brand/files/` (logo maestro, monograma,

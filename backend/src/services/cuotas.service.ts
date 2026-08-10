@@ -1,6 +1,7 @@
 import type { EstadoCuota } from "../generated/prisma/enums";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../lib/http";
+import { comoBogota } from "../lib/fecha-bogota";
 
 export interface FiltrosCuotas {
   estado?: EstadoCuota;
@@ -30,6 +31,6 @@ export async function marcarCuotaPagada(id: number) {
 
   return prisma.cuota.update({
     where: { id },
-    data: { estado: "pagada", fechaPago: new Date() },
+    data: { estado: "pagada", fechaPago: comoBogota(new Date()) },
   });
 }

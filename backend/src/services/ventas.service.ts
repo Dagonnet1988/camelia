@@ -2,6 +2,7 @@ import { Prisma } from "../generated/prisma/client";
 import type { Canal, FrecuenciaCuotas, MedioPago } from "../generated/prisma/enums";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../lib/http";
+import { comoBogota } from "../lib/fecha-bogota";
 
 const DIAS_POR_FRECUENCIA: Record<FrecuenciaCuotas, number> = {
   semanal: 7,
@@ -100,7 +101,7 @@ export async function registrarVenta(input: RegistrarVentaInput) {
       throw new ApiError(400, `Stock insuficiente para ${input.codigoProducto}: disponible ${producto.stockActual}, solicitado ${input.cantidad}`);
     }
 
-    const fechaVenta = input.fechaVenta ?? new Date();
+    const fechaVenta = comoBogota(input.fechaVenta ?? new Date());
 
     if (input.compradorCelular) {
       const comprador = await tx.comprador.findUnique({ where: { celular: input.compradorCelular } });
@@ -299,8 +300,10 @@ function generarCuotas(
     const valorCuota = esUltima ? valorTotalVenta.sub(acumulado) : valorBase;
     acumulado = acumulado.add(valorCuota);
 
+    // fechaVenta ya viene desplazada por comoBogota() - sus componentes reales viven en los
+    // getters/setters UTC, no en los locales (ver fecha-bogota.ts).
     const fechaVencimiento = new Date(fechaVenta);
-    fechaVencimiento.setDate(fechaVencimiento.getDate() + diasEntreCuotas * numero);
+    fechaVencimiento.setUTCDate(fechaVencimiento.getUTCDate() + diasEntreCuotas * numero);
 
     cuotas.push({
       idVenta,

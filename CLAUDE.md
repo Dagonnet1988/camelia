@@ -1073,6 +1073,43 @@ para una eventual segunda vuelta).
   incluido, y las 3 cuotas redondeadas a la centena sumando exacto al total). Confirmado 200
   para los 3 roles, 401 sin sesión, 404 con una venta inexistente. Typecheck limpio en backend y
   frontend.
+- **Rediseño con identidad de marca (mismo día, ajuste posterior):** la primera versión salía en
+  texto plano (Helvetica negro sobre blanco). Pedido explícito del usuario: "que este documento
+  tenga vida y sello de Camelia" — usar las imágenes de marca y los colores corporativos que ya
+  existen en `frontend/public/brand/`. Como el backend y el frontend son carpetas separadas (y
+  en el servidor de producción están bajo el mismo `/var/www/camelia/` pero no hay garantía de
+  que esa relación relativa se mantenga siempre), el logo se copió a
+  `backend/src/assets/brand/logo-maestro.png` — un asset propio del backend, no una referencia
+  cruzada al directorio del frontend — y `backend/package.json` (`build`) ahora también copia
+  `src/assets/brand` a `dist/assets/brand`, mismo patrón que ya usaba para
+  `src/generated/prisma`.
+  - Paleta: crema `#fbf7f6` (el mismo fondo horneado del PNG del logo — al pintar la página
+    completa de ese crema, el logo se funde sin bordes visibles), dorado `#b8863e` (muestreado
+    del propio logo con Pillow) para líneas/títulos/el monto del total, tinta `#0b0b0b` para
+    texto principal — mismos tonos que `--brand-cream` en `styles.scss`. El estado de cada
+    cuota usa los mismos colores semánticos que el badge de la web (`--good`/`--warning`/
+    `--serious`), aunque con un ámbar más oscuro para "pendiente" (`#c98a0a` en vez de
+    `#fab219`) porque el amarillo puro del badge web pierde contraste sobre fondo crema en vez
+    de blanco.
+  - Tipografía: no existe una fuente serif propia embebida en la app (el logo es un PNG
+    terminado, sin `@font-face` en ningún lado) — se usa `Times-Bold`/`Times-Italic` (fuente
+    built-in de pdfkit, no requiere embeber un archivo `.ttf`) para títulos y el tagline, como
+    análogo elegante razonable sin perseguir un pixel-match imposible de la tipografía exacta
+    del logo.
+  - Estructura: logo centrado arriba (fondo del PNG idéntico al fondo de la página, sin caja
+    visible) → línea dorada → título serif → línea de metadata (fecha · cliente · medio de
+    pago) centrada → tabla de items con encabezado en banda dorada clara → bloque de totales
+    alineado a la derecha con el total en dorado, más grande → (si aplica) tabla de cuotas con
+    el estado coloreado → línea dorada de cierre → tagline "Detalles que te hacen especial" en
+    dorado itálico. Páginas de continuación (venta con muchos items, poco común dado el límite
+    de 3 cuotas) repintan el fondo crema y muestran una marca de agua discreta ("CAMELIA" en
+    dorado, esquina superior derecha) en vez de repetir el logo grande.
+  - Verificado visualmente (no solo con extracción de texto): PDF renderizado a PNG con `sips`
+    para dos casos — venta multi-línea a cuotas (3 productos, cuotas en pendiente/pagada/
+    atrasada mostrando sus 3 colores correctos) y venta de contado con comprador real (sin
+    sección de recargo ni cuotas, sin huecos de layout). El PDF de liquidación de comisiones
+    (`pdf-liquidacion.ts`) no se tocó en este rediseño — sigue con el estilo plano anterior; el
+    usuario puede pedir el mismo tratamiento ahí después si lo quiere.
 
 ### Identidad de marca — COMPLETO (2026-08-02)
 

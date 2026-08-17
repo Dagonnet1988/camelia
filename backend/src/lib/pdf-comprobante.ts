@@ -1,3 +1,4 @@
+import path from "node:path";
 import PDFDocument from "pdfkit";
 import type { Response } from "express";
 
@@ -8,11 +9,27 @@ const MONEDA = new Intl.NumberFormat("es-CO", { style: "currency", currency: "CO
 // (como en dev), le resta 5h otra vez y cruza la medianoche al dia anterior.
 const FECHA = new Intl.DateTimeFormat("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 
-const ESTADO_CUOTA_LABEL: Record<string, string> = {
+// Paleta de marca (Camelia) - mismos tonos que frontend/src/styles.scss y el logo en
+// frontend/public/brand/. No hay una fuente serif propia embebida en la app (el logo es un PNG
+// terminado), asi que se usa Times como analogo serif disponible en pdfkit para el look elegante
+// del wordmark, sin intentar clonar la tipografia exacta del logo.
+const CREMA = "#fbf7f6";
+const DORADO = "#b8863e";
+const DORADO_CLARO = "#f1e4cf";
+const TINTA = "#0b0b0b";
+const MUTED = "#52514e";
+const ESTADO_COLOR: Record<string, string> = {
+  pagada: "#0ca30c",
+  pendiente: "#c98a0a", // version mas oscura que --warning (#fab219) - sobre fondo crema el amarillo puro pierde contraste
+  atrasada: "#d0553a",
+};
+const ESTADO_LABEL: Record<string, string> = {
   pendiente: "Pendiente",
   pagada: "Pagada",
   atrasada: "Atrasada",
 };
+
+const LOGO_PATH = path.join(__dirname, "../assets/brand/logo-maestro.png");
 
 interface ItemComprobante {
   codigoProducto: string;
@@ -45,132 +62,195 @@ interface ComprobanteVentaInput {
   comprador: { nombre: string; celular: string } | null;
 }
 
+type Columna = { titulo: string; ancho: number; align?: "left" | "right" };
+
 export function generarPdfComprobanteVenta(venta: ComprobanteVentaInput, res: Response): void {
   const doc = new PDFDocument({ size: "A4", margin: 50 });
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `inline; filename=comprobante-venta-${venta.id}.pdf`);
   doc.pipe(res);
 
-  doc.fontSize(18).text("Camelia", { continued: true }).fontSize(11).text("  Detalles que te hacen especial");
-  doc.moveDown(0.5);
-  doc.fontSize(14).text(`Comprobante de compra #${venta.id}`);
-  doc.moveDown();
-
-  doc.fontSize(10);
-  doc.text(`Fecha: ${FECHA.format(venta.fechaVenta)}`);
-  doc.text(`Cliente: ${venta.comprador ? venta.comprador.nombre : "Consumidor final"}`);
-  doc.text(`Medio de pago: ${venta.medioPago === "cuotas" ? "Cuotas" : "Contado"}`);
-  doc.moveDown();
-
-  const columnasItems = [
-    { titulo: "Código", ancho: 90 },
-    { titulo: "Producto", ancho: 195 },
-    { titulo: "Cant.", ancho: 50 },
-    { titulo: "Valor unit.", ancho: 90 },
-    { titulo: "Subtotal", ancho: 70 },
-  ];
   const inicioX = doc.page.margins.left;
-  let y = doc.y;
+  const anchoContenido = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
-  const dibujarFila = (
-    columnas: { titulo: string; ancho: number }[],
-    valores: string[],
-    negrita = false,
-  ): void => {
-    let x = inicioX;
-    doc.font(negrita ? "Helvetica-Bold" : "Helvetica").fontSize(9);
-    for (let i = 0; i < columnas.length; i++) {
-      doc.text(valores[i]!, x, y, { width: columnas[i]!.ancho, align: i === 0 ? "left" : "right" });
-      x += columnas[i]!.ancho;
-    }
-    y += 18;
+  const pintarFondo = (): void => {
+    doc.rect(0, 0, doc.page.width, doc.page.height).fill(CREMA);
   };
 
-  const lineaHorizontal = (columnas: { titulo: string; ancho: number }[]): void => {
+  const lineaDorada = (y: number, ancho = anchoContenido): void => {
+    doc.moveTo(inicioX, y).lineTo(inicioX + ancho, y).lineWidth(1).strokeColor(DORADO).stroke();
+  };
+
+  // Encabezado de continuacion para paginas siguientes (una venta larga, poco comun) - marca
+  // discreta en vez de repetir el logo grande de la primera pagina.
+  const nuevaPagina = (): number => {
+    doc.addPage();
+    pintarFondo();
     doc
-      .moveTo(inicioX, y)
-      .lineTo(inicioX + columnas.reduce((acc, c) => acc + c.ancho, 0), y)
-      .stroke();
-    y += 6;
+      .font("Times-Bold")
+      .fontSize(11)
+      .fillColor(DORADO)
+      .text("CAMELIA", inicioX, doc.page.margins.top, { width: anchoContenido, align: "right" });
+    const y = doc.page.margins.top + 20;
+    lineaDorada(y);
+    return y + 14;
   };
 
-  dibujarFila(
-    columnasItems,
-    columnasItems.map((c) => c.titulo),
-    true,
-  );
-  lineaHorizontal(columnasItems);
+  pintarFondo();
+
+  const anchoLogo = 130;
+  doc.image(LOGO_PATH, inicioX + (anchoContenido - anchoLogo) / 2, doc.y, { width: anchoLogo });
+  let y = doc.y + anchoLogo * (315 / 494) + 18;
+
+  lineaDorada(y);
+  y += 16;
+
+  doc
+    .font("Times-Bold")
+    .fontSize(16)
+    .fillColor(TINTA)
+    .text(`Comprobante de compra #${venta.id}`, inicioX, y, { width: anchoContenido, align: "center" });
+  y += 24;
+
+  const clienteLabel = venta.comprador ? venta.comprador.nombre : "Consumidor final";
+  const medioPagoLabel = venta.medioPago === "cuotas" ? "Cuotas" : "Contado";
+  doc
+    .font("Helvetica")
+    .fontSize(9.5)
+    .fillColor(MUTED)
+    .text(`${FECHA.format(venta.fechaVenta)}  ·  Cliente: ${clienteLabel}  ·  ${medioPagoLabel}`, inicioX, y, {
+      width: anchoContenido,
+      align: "center",
+    });
+  y += 30;
+
+  const dibujarEncabezadoTabla = (columnas: Columna[]): void => {
+    const alturaBanda = 20;
+    doc.rect(inicioX, y - 4, columnas.reduce((acc, c) => acc + c.ancho, 0), alturaBanda).fill(DORADO_CLARO);
+    let x = inicioX;
+    doc.font("Helvetica-Bold").fontSize(9).fillColor(TINTA);
+    for (const c of columnas) {
+      doc.text(c.titulo, x + 4, y, { width: c.ancho - 8, align: c.align ?? "right" });
+      x += c.ancho;
+    }
+    y += alturaBanda;
+    lineaDorada(y, columnas.reduce((acc, c) => acc + c.ancho, 0));
+    y += 8;
+  };
+
+  const asegurarEspacio = (columnas: Columna[]): void => {
+    if (y > doc.page.height - 110) {
+      y = nuevaPagina();
+      dibujarEncabezadoTabla(columnas);
+    }
+  };
+
+  const columnasItems: Columna[] = [
+    { titulo: "Código", ancho: 85, align: "left" },
+    { titulo: "Producto", ancho: 195, align: "left" },
+    { titulo: "Cant.", ancho: 45 },
+    { titulo: "Valor unit.", ancho: 90 },
+    { titulo: "Subtotal", ancho: 80 },
+  ];
+  dibujarEncabezadoTabla(columnasItems);
 
   for (const item of venta.items) {
-    if (y > doc.page.height - 100) {
-      doc.addPage();
-      y = doc.page.margins.top;
-    }
-    dibujarFila(columnasItems, [
+    asegurarEspacio(columnasItems);
+    let x = inicioX;
+    doc.font("Helvetica").fontSize(9).fillColor(TINTA);
+    const valores = [
       item.codigoProducto,
       item.nombreProducto,
       String(item.cantidad),
       MONEDA.format(Number(item.valorUnitario)),
       MONEDA.format(Number(item.valorUnitario) * item.cantidad),
-    ]);
+    ];
+    for (const [i, col] of columnasItems.entries()) {
+      doc.text(valores[i]!, x + 4, y, { width: col.ancho - 8, align: col.align ?? "right" });
+      x += col.ancho;
+    }
+    y += 18;
   }
   y += 6;
-  lineaHorizontal(columnasItems);
-  y += 4;
 
-  doc.font("Helvetica").fontSize(10);
-  doc.text(`Subtotal: ${MONEDA.format(Number(venta.valorContado))}`, inicioX, y, { width: 425, align: "right" });
+  doc.font("Helvetica").fontSize(10).fillColor(MUTED);
+  doc.text(`Subtotal: ${MONEDA.format(Number(venta.valorContado))}`, inicioX, y, { width: anchoContenido, align: "right" });
   y += 16;
   if (venta.medioPago === "cuotas" && Number(venta.recargoCuotas) > 0) {
     doc.text(`Recargo por cuotas: ${MONEDA.format(Number(venta.recargoCuotas))}`, inicioX, y, {
-      width: 425,
+      width: anchoContenido,
       align: "right",
     });
     y += 16;
   }
-  doc.font("Helvetica-Bold").fontSize(12);
-  doc.text(`Total: ${MONEDA.format(Number(venta.valorTotalVenta))}`, inicioX, y, { width: 425, align: "right" });
-  y += 28;
+  y += 4;
+  lineaDorada(y, 200 <= anchoContenido ? 200 : anchoContenido);
+  // La linea de "Total" se alinea al margen derecho, no a la izquierda - por eso el rule corto
+  // se dibuja anclado al borde derecho del contenido, no al inicioX.
+  doc.moveTo(inicioX + anchoContenido - 200, y).lineTo(inicioX + anchoContenido, y).lineWidth(1).strokeColor(DORADO).stroke();
+  y += 10;
+  doc.font("Times-Bold").fontSize(14).fillColor(TINTA).text("Total  ", inicioX, y, { width: anchoContenido - 110, align: "right" });
+  doc
+    .font("Times-Bold")
+    .fontSize(14)
+    .fillColor(DORADO)
+    .text(MONEDA.format(Number(venta.valorTotalVenta)), inicioX + anchoContenido - 110, y, { width: 110, align: "right" });
+  y += 30;
 
   if (venta.medioPago === "cuotas") {
-    doc.font("Helvetica-Bold").fontSize(11).text("Cuotas", inicioX, y);
+    asegurarEspacio([]);
+    doc.font("Times-Bold").fontSize(12).fillColor(DORADO).text("Cuotas", inicioX, y);
     y += 20;
 
-    const columnasCuotas = [
-      { titulo: "Cuota", ancho: 60 },
-      { titulo: "Valor", ancho: 100 },
+    const columnasCuotas: Columna[] = [
+      { titulo: "Cuota", ancho: 55 },
+      { titulo: "Valor", ancho: 90 },
       { titulo: "Vence", ancho: 100 },
-      { titulo: "Estado", ancho: 100 },
+      { titulo: "Estado", ancho: 90 },
       { titulo: "Fecha de pago", ancho: 90 },
     ];
-    dibujarFila(
-      columnasCuotas,
-      columnasCuotas.map((c) => c.titulo),
-      true,
-    );
-    lineaHorizontal(columnasCuotas);
+    dibujarEncabezadoTabla(columnasCuotas);
 
     for (const cuota of [...venta.cuotas].sort((a, b) => a.numeroCuota - b.numeroCuota)) {
-      if (y > doc.page.height - 100) {
-        doc.addPage();
-        y = doc.page.margins.top;
-      }
-      dibujarFila(columnasCuotas, [
+      asegurarEspacio(columnasCuotas);
+      let x = inicioX;
+      const valores = [
         `${cuota.numeroCuota}/${venta.cuotas.length}`,
         MONEDA.format(Number(cuota.valorCuota)),
         FECHA.format(cuota.fechaVencimiento),
-        ESTADO_CUOTA_LABEL[cuota.estado] ?? cuota.estado,
+        ESTADO_LABEL[cuota.estado] ?? cuota.estado,
         cuota.fechaPago ? FECHA.format(cuota.fechaPago) : "—",
-      ]);
+      ];
+      for (const [i, col] of columnasCuotas.entries()) {
+        const esEstado = col.titulo === "Estado";
+        doc
+          .font(esEstado ? "Helvetica-Bold" : "Helvetica")
+          .fontSize(9)
+          .fillColor(esEstado ? (ESTADO_COLOR[cuota.estado] ?? TINTA) : TINTA);
+        doc.text(valores[i]!, x + 4, y, { width: col.ancho - 8, align: col.align ?? "right" });
+        x += col.ancho;
+      }
+      y += 18;
     }
   }
 
-  doc.moveDown(2);
+  y += 20;
+  if (y > doc.page.height - 90) y = nuevaPagina();
+  lineaDorada(y);
+  y += 12;
+  doc
+    .font("Times-Italic")
+    .fontSize(10)
+    .fillColor(DORADO)
+    .text("Detalles que te hacen especial", inicioX, y, { width: anchoContenido, align: "center" });
+  y += 16;
   doc
     .font("Helvetica")
-    .fontSize(8)
-    .text("Guarda este comprobante - el código de cada producto te sirve para volver a pedirlo.", inicioX, doc.y, {
-      width: 425,
+    .fontSize(7.5)
+    .fillColor(MUTED)
+    .text("Guarda este comprobante - el código de cada producto te sirve para volver a pedirlo.", inicioX, y, {
+      width: anchoContenido,
+      align: "center",
     });
 
   doc.end();

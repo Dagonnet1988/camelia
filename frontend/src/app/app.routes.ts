@@ -7,6 +7,7 @@ import { ComprasComponent } from './compras/compras.component';
 import { CompraLoteComponent } from './compra-lote/compra-lote.component';
 import { CompradoresComponent } from './compradores/compradores.component';
 import { VentasComponent } from './ventas/ventas.component';
+import { CuotasComponent } from './cuotas/cuotas.component';
 import { WhatsappComponent } from './whatsapp/whatsapp.component';
 import { LoginComponent } from './login/login.component';
 import { CambiarPasswordComponent } from './cambiar-password/cambiar-password.component';
@@ -26,6 +27,7 @@ export const routes: Routes = [
   { path: 'comisiones', component: ComisionesComponent, canActivate: [managerGuard] },
   { path: 'compradores', component: CompradoresComponent, canActivate: [authGuard] },
   { path: 'ventas', component: VentasComponent, canActivate: [authGuard] },
+  { path: 'cuotas', component: CuotasComponent, canActivate: [authGuard] },
   { path: 'whatsapp', component: WhatsappComponent, canActivate: [authGuard] },
   { path: 'usuarios', component: UsuariosComponent, canActivate: [adminGuard] },
 ];

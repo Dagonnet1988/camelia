@@ -1,0 +1,211 @@
+<header class="page-header">
+  <h1>Cuotas</h1>
+  <p>Todo lo relacionado con ventas a cuotas: pagos, recordatorios y configuración</p>
+</header>
+
+@if (error()) {
+  <div class="alert-error">{{ error() }}</div>
+}
+@if (exito()) {
+  <div class="alert-ok">{{ exito() }}</div>
+}
+
+@if (auth.esManagerOAdmin() && cartera()) {
+  <section class="card">
+    <h2>Cartera</h2>
+    <div class="kpi-row">
+      <app-stat-tile
+        label="Por cobrar (pendiente)"
+        [value]="cartera_totalPendiente()"
+        [caption]="cartera_cantidadPendiente() + ' cuotas'"
+      />
+      <app-stat-tile
+        label="Por cobrar (atrasada)"
+        [value]="cartera_totalAtrasado()"
+        [caption]="cartera_cantidadAtrasada() + ' cuotas'"
+      />
+    </div>
+  </section>
+}
+
+<section class="card" style="margin-top: 20px">
+  <h2>Cuotas ({{ cuotasFiltradas().length }})</h2>
+
+  <div class="filtros-row">
+    <div class="chips">
+      <button class="chip" type="button" [class.active]="filtroEstado() === 'todas'" (click)="filtroEstado.set('todas')">
+        Todas
+      </button>
+      <button class="chip" type="button" [class.active]="filtroEstado() === 'pendiente'" (click)="filtroEstado.set('pendiente')">
+        Pendiente
+      </button>
+      <button class="chip" type="button" [class.active]="filtroEstado() === 'atrasada'" (click)="filtroEstado.set('atrasada')">
+        Atrasada
+      </button>
+      <button class="chip" type="button" [class.active]="filtroEstado() === 'pagada'" (click)="filtroEstado.set('pagada')">
+        Pagada
+      </button>
+    </div>
+
+    <div class="field" style="max-width: 320px">
+      <label>Buscar por comprador o producto</label>
+      <input
+        type="search"
+        placeholder="Valentina Gomez, Aretes Luna…"
+        list="cuotas-busqueda-sugerencias"
+        [ngModel]="busqueda()"
+        (ngModelChange)="busqueda.set($event)"
+      />
+      <datalist id="cuotas-busqueda-sugerencias">
+        @for (s of busquedaSugerencias(); track s) {
+          <option [value]="s"></option>
+        }
+      </datalist>
+    </div>
+  </div>
+
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="num">Venta #</th>
+          <th>Comprador</th>
+          <th>Producto</th>
+          <th class="num">Cuota</th>
+          <th class="num">Valor</th>
+          <th>Vence</th>
+          <th>Fecha pago</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of cuotasFiltradas(); track c.id) {
+          <tr>
+            <td class="num">{{ c.idVenta }}</td>
+            <td>{{ nombreComprador(c.venta.compradorCelular) }}</td>
+            <td>{{ resumenProductosVenta(c.venta.items) }}</td>
+            <td class="num">{{ c.numeroCuota }} / {{ c.venta.numCuotas }}</td>
+            <td class="num">{{ c.valorCuota }}</td>
+            <td>
+              @if (editandoFechaCuotaId() === c.id) {
+                <input type="date" [(ngModel)]="nuevaFechaCuota" />
+              } @else {
+                {{ c.fechaVencimiento.slice(0, 10) }}
+              }
+            </td>
+            <td>{{ c.fechaPago ? c.fechaPago.slice(0, 10) : '—' }}</td>
+            <td>
+              <span class="badge" [class]="'badge-' + c.estado">{{ c.estado }}</span>
+            </td>
+            <td>
+              @if (editandoFechaCuotaId() === c.id) {
+                <button
+                  class="btn btn-secondary"
+                  type="button"
+                  [disabled]="guardandoFechaCuotaId() === c.id"
+                  (click)="guardarFechaCuota(c)"
+                >
+                  Guardar
+                </button>
+                <button class="btn btn-secondary" type="button" (click)="cancelarFechaCuota()">Cancelar</button>
+              } @else if (c.estado !== 'pagada') {
+                <button
+                  class="btn btn-secondary"
+                  type="button"
+                  [disabled]="pagandoCuotaId() === c.id"
+                  (click)="pagarCuota(c)"
+                >
+                  Marcar pagada
+                </button>
+                @if (auth.esManagerOAdmin()) {
+                  <button class="btn btn-secondary" type="button" (click)="editarFechaCuota(c)">Editar fecha</button>
+                }
+              }
+            </td>
+          </tr>
+        }
+        @empty {
+          <tr>
+            <td colspan="9">No hay cuotas para este filtro</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+@if (auth.esManagerOAdmin()) {
+  <section class="card" style="margin-top: 20px">
+    <h2>Recordatorios automáticos</h2>
+
+    <div class="switch-row">
+      <label class="switch">
+        <input
+          type="checkbox"
+          [checked]="recordatoriosActivos()"
+          [disabled]="guardandoConfig()"
+          (change)="toggleRecordatorios()"
+        />
+        <span class="slider"></span>
+      </label>
+      <span>Recordatorios automaticos {{ recordatoriosActivos() ? 'activos' : 'desactivados' }}</span>
+    </div>
+
+    <p class="hint">
+      Cuando estan activos, se envian todos los dias a las 9:00am (cuotas que vencen en los proximos
+      2 dias o ya atrasadas, una sola vez por cuota). El boton de abajo siempre funciona, sin
+      importar el switch:
+    </p>
+    <button
+      class="btn btn-secondary"
+      type="button"
+      (click)="enviarRecordatoriosAhora()"
+      [disabled]="estadoWhatsapp() !== 'conectado' || enviandoRecordatorios()"
+    >
+      Enviar recordatorios ahora
+    </button>
+    @if (estadoWhatsapp() !== 'conectado') {
+      <p class="hint">WhatsApp no está conectado — vincula el número desde la página de WhatsApp.</p>
+    }
+
+    <div class="form-grid" style="margin-top: 16px">
+      <div class="field">
+        <label>Mensajes por hora</label>
+        <input type="number" name="limiteMensajesHora" [(ngModel)]="limiteMensajesHora" min="1" />
+      </div>
+      <div class="field">
+        <label>Mensajes por dia</label>
+        <input type="number" name="limiteMensajesDia" [(ngModel)]="limiteMensajesDia" min="1" />
+      </div>
+      <div class="field">
+        <button class="btn" type="button" (click)="guardarLimites()" [disabled]="guardandoLimites()">
+          Guardar limites
+        </button>
+      </div>
+    </div>
+    <p class="hint">Límites de envío: protegen el número de un uso que parezca automatizado/spam. Dejar vacío = sin límite.</p>
+    @if (limitesGuardados()) {
+      <div class="alert-ok">Limites actualizados</div>
+    }
+  </section>
+
+  <section class="card" style="margin-top: 20px">
+    <h2>Recargo por cuotas (por defecto)</h2>
+    <p class="hint">
+      Valor sugerido al registrar una venta a cuotas — se puede ajustar por venta individual al
+      crearla o al editarla, sin afectar este valor.
+    </p>
+    <div class="form-grid">
+      <div class="field">
+        <label>Recargo por cuotas</label>
+        <input type="number" name="recargoCuotasGlobal" [(ngModel)]="recargoCuotasGlobal" min="0" />
+      </div>
+      <div class="field">
+        <button class="btn" type="button" [disabled]="guardandoRecargo()" (click)="guardarRecargo()">
+          Guardar
+        </button>
+      </div>
+    </div>
+  </section>
+}

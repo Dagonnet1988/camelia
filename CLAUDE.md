@@ -62,9 +62,10 @@ tabla, cuando una venta era de un solo producto) se movieron a `venta_items`.
 - frecuencia_cuotas (enum: 'semanal', 'quincenal', 'mensual'; nullable — solo si medio_pago =
   'cuotas'. Define cada cuántos días vence cada cuota — 7/15/30 respectivamente.)
 - recargo_cuotas (decimal, nullable — valor extra cobrado por financiar, de la venta completa,
-  no por línea. Al registrar la venta se toma de `configuracion_app.recargo_cuotas_global`
-  (ajustable desde Comisiones); al editar una venta ya creada, se puede ajustar manualmente
-  para esa venta puntual sin afectar el global.)
+  no por línea. Editable por venta desde el momento de crearla (agregado 2026-08-17) — si no se
+  manda, cae a `configuracion_app.recargo_cuotas_global` (ajustable desde Cuotas, no desde
+  Comisiones); al editar una venta ya creada, también se puede ajustar manualmente para esa
+  venta puntual sin afectar el global.)
 - valor_total_venta (decimal, = valor_contado + recargo_cuotas)
 - ganancia (decimal, = suma de la `ganancia` de cada línea — ver `venta_items`)
 - canal (enum: 'whatsapp', 'presencial')
@@ -962,6 +963,67 @@ el número realmente conectado, sin duplicar el dato en ningún lado.
   vinculada en desarrollo; los 9 productos del catálogo mostraron el botón con el link
   correctamente armado (`https://wa.me/<numero>?text=Hola! Quisiera preguntar por: <nombre>
   (<código>) — <precio>`); la página `/whatsapp` mostró el mismo número.
+
+### Recargo por venta con vista previa + módulo Cuotas consolidado — COMPLETO (2026-08-17)
+
+Todo lo relacionado con cuotas estaba repartido en 3 páginas (tabla de cuotas pendientes al
+final de Ventas, recordatorios automáticos en WhatsApp, cartera en el Dashboard), lo cual
+preocupaba operativamente al usuario. En paralelo, validando el formulario de Ventas, salió un
+problema relacionado: el recargo por cuotas se tomaba en silencio de
+`configuracion_app.recargo_cuotas_global` al crear la venta, sin poder verlo ni ajustarlo hasta
+editarla después. Pedido explícito del usuario, con permisos confirmados igual a los de hoy:
+mantener cuotas abierto a los 3 roles (ver/pagar), cartera/recordatorios/recargo-por-defecto
+solo manager/admin; quitar la tabla de "Cuotas pendientes" de Ventas y dejar solo un link;
+**mantener la cartera duplicada tanto en Dashboard como en el módulo nuevo** (decisión explícita
+del usuario, no la opción recomendada de quitarla del Dashboard — *"Dejarlo en los dos
+lugares"*); y que el recargo se pueda fijar **por venta, al momento de crearla**, con vista
+previa de cuánto queda cada cuota (mismo redondeo a la centena que ya usa `generarCuotas`).
+
+- **Backend (`ventas.service.ts`/`ventas.routes.ts`):** `RegistrarVentaInput` gana
+  `recargoCuotas?: number` opcional (`z.number().nonnegative().optional()` en el schema). Si se
+  manda, gana sobre el global: `input.recargoCuotas !== undefined ? new Prisma.Decimal(...) :
+  (config?.recargoCuotasGlobal ?? 0)` — si no se manda, el comportamiento de siempre (tomar el
+  global) queda intacto. `actualizarVenta` no cambió, ya aceptaba `recargoCuotas` al editar.
+- **Vista previa de cuotas — helper compartido** (`frontend/src/app/shared/cuotas-preview.ts`,
+  nuevo): `previsualizarCuotas(valorTotalVenta, numCuotas)` replica en el frontend, en JS puro,
+  exactamente la misma regla de redondeo de `generarCuotas()` en el backend (cada cuota salvo la
+  última a la centena más cercana, la última absorbe el resto) — usado en vivo en los formularios
+  de "Nueva venta" y "Editar venta" de `ventas.component.html`, recalculado en cada cambio de
+  líneas/recargo/num_cuotas sin necesidad de golpear el backend. Verificado que ambos lados
+  (backend real vía API y el helper del frontend) producen exactamente los mismos valores para
+  los mismos montos.
+- **"Nueva venta"** ahora tiene el campo "Recargo por cuotas" (antes solo estaba en "Editar
+  venta", quitado de "Nueva venta" el 2026-08-06) — prellenado con el valor global vigente
+  (`GET /api/comisiones/configuracion`, solo para manager/admin; el rol `user` no tiene acceso a
+  ese endpoint así que el campo le queda vacío, lo cual sigue funcionando bien porque el backend
+  aplica el mismo global si no llega nada).
+- **Módulo nuevo `/cuotas`** (`frontend/src/app/cuotas/`, ruta con `authGuard`, link de nav
+  visible para los 3 roles junto a Ventas) — **sin endpoints nuevos**, todo reutilizado:
+  - Lista completa de cuotas (`GET /api/cuotas`, antes solo se veía "la próxima por venta" en
+    Ventas) con chips de filtro por estado y búsqueda con autocompletado por comprador/producto;
+    pagar (los 3 roles) y editar fecha (manager/admin en el frontend — ver nota abajo), moviendo
+    la lógica que antes vivía en `ventas.component.ts`.
+  - Cartera (`GET /api/metrics/cartera-cuotas`, manager/admin): mismos KPIs que ya existían en el
+    Dashboard, **mantenidos también ahí** por decisión explícita del usuario — es la única
+    sección de este módulo con duplicación intencional.
+  - Recordatorios automáticos (`GET/PUT /api/whatsapp/config`,
+    `POST /api/whatsapp/recordatorios/enviar-ahora`, manager/admin) — movido de WhatsApp, que
+    conserva conexión/QR, envío manual, difusión masiva e historial sin cambios.
+  - Recargo por cuotas por defecto (`GET/PUT /api/comisiones/configuracion`, manager/admin) —
+    movido de Comisiones, que conserva solo lo propio de comisiones de vendedores.
+- **Nota de permisos encontrada durante la verificación (no introducida en este cambio, ya
+  existía):** `PATCH /api/cuotas/:id/fecha` nunca tuvo guard de rol a nivel de API — solo el
+  botón "Editar fecha" está oculto para el rol `user` en el frontend
+  (`@if (auth.esManagerOAdmin())`). No se tocó porque está fuera del alcance de este cambio, pero
+  queda registrado por si en el futuro se decide cerrarlo también en el backend.
+- Probado end-to-end vía API con los 3 roles reales del entorno de desarrollo (admin, manager
+  `30399617`, user `dahi`): registrar una venta a cuotas con `recargoCuotas` explícito distinto
+  al global confirma que gana el valor enviado (cuotas de 11700/11700/11599 sobre un total de
+  34999, exacto); registrar otra sin mandarlo confirma la caída al global (15000/15000 sobre
+  30000); `GET /api/cuotas` da 200 para `user` pero `GET /api/metrics/cartera-cuotas` y
+  `GET /api/comisiones/configuracion` dan 403; marcar una cuota pagada como `user` funciona;
+  editar la fecha de otra como `manager` funciona; los endpoints de WhatsApp/Comisiones
+  reutilizados responden igual desde la nueva página. Typecheck limpio en backend y frontend.
 
 ### Identidad de marca — COMPLETO (2026-08-02)
 

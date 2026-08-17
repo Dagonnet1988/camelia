@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { DifusionComponent } from '../difusion/difusion.component';
@@ -12,7 +13,7 @@ const POLL_MS = 3000;
 
 @Component({
   selector: 'app-whatsapp',
-  imports: [FormsModule, DatePipe, DifusionComponent],
+  imports: [FormsModule, DatePipe, DifusionComponent, RouterLink],
   templateUrl: './whatsapp.component.html',
   styleUrl: './whatsapp.component.scss',
 })
@@ -26,14 +27,6 @@ export class WhatsappComponent implements OnInit, OnDestroy {
   enviando = signal(false);
   error = signal<string | null>(null);
   exito = signal<string | null>(null);
-
-  recordatoriosActivos = signal(true);
-  guardandoConfig = signal(false);
-
-  limiteMensajesHora: number | null = 20;
-  limiteMensajesDia: number | null = 100;
-  guardandoLimites = signal(false);
-  limitesGuardados = signal(false);
 
   historial = signal<HistorialMensajeWhatsapp[]>([]);
 
@@ -54,20 +47,11 @@ export class WhatsappComponent implements OnInit, OnDestroy {
       this.qr.set(r.qr);
       this.numeroVinculado.set(r.numero);
     });
-    this.cargarConfig();
     this.cargarHistorial();
   }
 
   ngOnDestroy(): void {
     this.pollSub?.unsubscribe();
-  }
-
-  cargarConfig(): void {
-    this.whatsapp.obtenerConfig().subscribe((c) => {
-      this.recordatoriosActivos.set(c.recordatoriosCuotasActivos);
-      this.limiteMensajesHora = c.limiteMensajesHora;
-      this.limiteMensajesDia = c.limiteMensajesDia;
-    });
   }
 
   cargarHistorial(): void {
@@ -112,54 +96,5 @@ export class WhatsappComponent implements OnInit, OnDestroy {
         this.cargarHistorial();
       },
     });
-  }
-
-  enviarRecordatoriosAhora(): void {
-    this.error.set(null);
-    this.exito.set(null);
-    this.whatsapp.enviarRecordatoriosAhora().subscribe({
-      next: () => {
-        this.exito.set('Recordatorios de cuotas procesados');
-        this.cargarHistorial();
-      },
-      error: (err) => this.error.set(extractError(err)),
-    });
-  }
-
-  toggleRecordatorios(): void {
-    const nuevoValor = !this.recordatoriosActivos();
-    this.guardandoConfig.set(true);
-    this.whatsapp.actualizarConfig({ recordatoriosCuotasActivos: nuevoValor }).subscribe({
-      next: (c) => {
-        this.recordatoriosActivos.set(c.recordatoriosCuotasActivos);
-        this.guardandoConfig.set(false);
-      },
-      error: (err) => {
-        this.error.set(extractError(err));
-        this.guardandoConfig.set(false);
-      },
-    });
-  }
-
-  guardarLimites(): void {
-    this.guardandoLimites.set(true);
-    this.limitesGuardados.set(false);
-    this.whatsapp
-      .actualizarConfig({
-        limiteMensajesHora: this.limiteMensajesHora,
-        limiteMensajesDia: this.limiteMensajesDia,
-      })
-      .subscribe({
-        next: (c) => {
-          this.limiteMensajesHora = c.limiteMensajesHora;
-          this.limiteMensajesDia = c.limiteMensajesDia;
-          this.guardandoLimites.set(false);
-          this.limitesGuardados.set(true);
-        },
-        error: (err) => {
-          this.error.set(extractError(err));
-          this.guardandoLimites.set(false);
-        },
-      });
   }
 }

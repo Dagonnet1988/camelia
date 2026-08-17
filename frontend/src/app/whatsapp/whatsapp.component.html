@@ -63,54 +63,10 @@
 </section>
 
 <section class="card" style="margin-top: 20px">
-  <h2>Recordatorios de cuotas</h2>
-
-  <div class="switch-row">
-    <label class="switch">
-      <input
-        type="checkbox"
-        [checked]="recordatoriosActivos()"
-        [disabled]="guardandoConfig()"
-        (change)="toggleRecordatorios()"
-      />
-      <span class="slider"></span>
-    </label>
-    <span>Recordatorios automaticos {{ recordatoriosActivos() ? 'activos' : 'desactivados' }}</span>
-  </div>
-
   <p class="hint">
-    Cuando estan activos, se envian todos los dias a las 9:00am (cuotas que vencen en los proximos
-    2 dias o ya atrasadas, una sola vez por cuota). El boton de abajo siempre funciona, sin
-    importar el switch:
+    La configuración de recordatorios automáticos de cuotas y los límites de envío se movieron
+    a la página <a routerLink="/cuotas">Cuotas</a>.
   </p>
-  <button class="btn btn-secondary" type="button" (click)="enviarRecordatoriosAhora()" [disabled]="estado() !== 'conectado'">
-    Enviar recordatorios ahora
-  </button>
-</section>
-
-<section class="card" style="margin-top: 20px">
-  <h2>Limites de envio</h2>
-  <p class="hint">
-    Protegen el numero de un uso que parezca automatizado/spam. Dejar vacio = sin limite.
-  </p>
-  <div class="form-grid">
-    <div class="field">
-      <label>Mensajes por hora</label>
-      <input type="number" name="limiteMensajesHora" [(ngModel)]="limiteMensajesHora" min="1" />
-    </div>
-    <div class="field">
-      <label>Mensajes por dia</label>
-      <input type="number" name="limiteMensajesDia" [(ngModel)]="limiteMensajesDia" min="1" />
-    </div>
-    <div class="field">
-      <button class="btn" type="button" (click)="guardarLimites()" [disabled]="guardandoLimites()">
-        Guardar limites
-      </button>
-    </div>
-  </div>
-  @if (limitesGuardados()) {
-    <div class="alert-ok">Limites actualizados</div>
-  }
 </section>
 
 <section class="card" style="margin-top: 20px">

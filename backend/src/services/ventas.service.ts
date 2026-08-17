@@ -27,6 +27,9 @@ export interface RegistrarVentaInput {
   medioPago: MedioPago;
   numCuotas?: number;
   frecuenciaCuotas?: FrecuenciaCuotas;
+  // Si no se manda, se toma configuracion_app.recargo_cuotas_global (comportamiento de siempre).
+  // Permite ajustarlo por venta desde el momento de crearla, no solo editando despues.
+  recargoCuotas?: number;
   canal: Canal;
   fechaVenta?: Date;
   vendedorId?: number;
@@ -156,10 +159,12 @@ async function registrarVentaEnTx(tx: Prisma.TransactionClient, input: Registrar
 
   const vendedor = input.vendedorId ? await tx.usuario.findUnique({ where: { id: input.vendedorId } }) : null;
 
-  // El recargo por cuotas parte del valor global configurado en Comisiones; se puede ajustar
-  // despues por venta individual desde la edicion (ver actualizarVenta).
+  // El recargo por cuotas: si se manda explicito en la venta, se usa ese (pedido explicito del
+  // usuario - ajustable por venta desde el momento de crearla); si no, cae al valor global
+  // configurado (comportamiento de siempre). Tambien se puede ajustar despues editando la venta.
   const config = input.medioPago === "cuotas" ? await tx.configuracionApp.findUnique({ where: { id: 1 } }) : null;
-  const recargoCuotas = config?.recargoCuotasGlobal ?? new Prisma.Decimal(0);
+  const recargoCuotas =
+    input.recargoCuotas !== undefined ? new Prisma.Decimal(input.recargoCuotas) : (config?.recargoCuotasGlobal ?? new Prisma.Decimal(0));
 
   // El nombre del campo (costo_unitario_al_momento) es historico: la ganancia se calcula con el
   // costo de la compra mas reciente del producto, no con el promedio ponderado (pedido explicito

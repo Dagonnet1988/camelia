@@ -192,6 +192,7 @@ export interface RegistrarVentaInput {
   medioPago: MedioPago;
   numCuotas?: number;
   frecuenciaCuotas?: FrecuenciaCuotas;
+  recargoCuotas?: number;
   canal: Canal;
   vendedorId?: number;
 }

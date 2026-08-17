@@ -1,10 +1,10 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import type {
   Canal,
   Comprador,
-  CuotaConVenta,
   FrecuenciaCuotas,
   LineaVentaEdicionInput,
   LineaVentaInput,
@@ -16,12 +16,12 @@ import type {
 import { AuthService } from '../services/auth.service';
 import { ComisionesService } from '../services/comisiones.service';
 import { CompradoresService } from '../services/compradores.service';
-import { CuotasService } from '../services/cuotas.service';
 import { ProductosService } from '../services/productos.service';
 import { VentasService } from '../services/ventas.service';
 import { extractError } from '../shared/http-error';
 import { ProductoSelectorComponent } from '../shared/producto-selector/producto-selector.component';
 import { resumenProductosVenta } from '../shared/venta-resumen';
+import { previsualizarCuotas } from '../shared/cuotas-preview';
 
 interface LineaVentaForm {
   id?: number; // presente = linea existente (edicion); ausente = linea nueva
@@ -36,6 +36,7 @@ interface VentaForm {
   medioPago: MedioPago;
   numCuotas: number;
   frecuenciaCuotas: FrecuenciaCuotas;
+  recargoCuotas: number | null;
   canal: Canal;
   vendedorId: number | null;
 }
@@ -67,6 +68,7 @@ function formVacio(): VentaForm {
     medioPago: 'contado',
     numCuotas: 1,
     frecuenciaCuotas: 'mensual',
+    recargoCuotas: null,
     canal: 'whatsapp',
     vendedorId: null,
   };
@@ -79,7 +81,7 @@ const COMPRADOR_NUEVO_VACIO: CompradorNuevoForm = {
 
 @Component({
   selector: 'app-ventas',
-  imports: [FormsModule, DatePipe, ProductoSelectorComponent],
+  imports: [FormsModule, DatePipe, ProductoSelectorComponent, RouterLink],
   templateUrl: './ventas.component.html',
   styleUrl: './ventas.component.scss',
 })
@@ -87,14 +89,9 @@ export class VentasComponent implements OnInit {
   productos = signal<Producto[]>([]);
   compradores = signal<Comprador[]>([]);
   ventas = signal<Venta[]>([]);
-  cuotasPendientes = signal<CuotaConVenta[]>([]);
   error = signal<string | null>(null);
   exito = signal<string | null>(null);
   guardando = signal(false);
-  pagandoCuotaId = signal<number | null>(null);
-  editandoFechaCuotaId = signal<number | null>(null);
-  guardandoFechaCuotaId = signal<number | null>(null);
-  nuevaFechaCuota = '';
 
   vendedores = signal<Vendedor[]>([]);
   filtroVendedorId: number | null = null;
@@ -123,7 +120,6 @@ export class VentasComponent implements OnInit {
     private ventasService: VentasService,
     private productosService: ProductosService,
     private compradoresService: CompradoresService,
-    private cuotasService: CuotasService,
     private comisionesService: ComisionesService,
     protected auth: AuthService,
   ) {}
@@ -132,12 +128,22 @@ export class VentasComponent implements OnInit {
     this.productosService.listar().subscribe((data) => this.productos.set(data));
     this.compradoresService.listar().subscribe((data) => this.compradores.set(data));
     this.cargarVentas();
-    this.cargarCuotasPendientes();
     if (this.auth.esManagerOAdmin()) {
       this.comisionesService.vendedores().subscribe((data) => this.vendedores.set(data));
       // Por defecto la venta queda a nombre de quien la registra; manager/admin puede cambiarlo.
       this.form.vendedorId = this.auth.usuario()?.id ?? null;
+      // Prellena el recargo sugerido con el valor global - el endpoint de configuracion es
+      // solo manager/admin, asi que para el rol 'user' el campo queda vacio (igual funciona:
+      // si se deja vacio, el backend aplica el mismo valor global al guardar).
+      this.comisionesService.configuracion().subscribe((c) => {
+        this.form.recargoCuotas = Number(c.recargoCuotasGlobal);
+      });
     }
+  }
+
+  // Vista previa del valor de cada cuota, en vivo mientras se arma la venta.
+  previsualizar(lineas: LineaVentaForm[], recargoCuotas: number | null, numCuotas: number): number[] {
+    return previsualizarCuotas(this.totalLineas(lineas) + (recargoCuotas ?? 0), numCuotas);
   }
 
   cargarVentas(): void {
@@ -146,23 +152,6 @@ export class VentasComponent implements OnInit {
 
   onFiltroVendedorChange(): void {
     this.cargarVentas();
-  }
-
-  cargarCuotasPendientes(): void {
-    this.cuotasService.listar().subscribe((data) => {
-      // Solo se muestra la proxima cuota sin pagar de cada venta (no todas a la vez) - una
-      // vez marcada pagada, la siguiente aparece sola. La lista ya viene ordenada por
-      // fecha_vencimiento asc, asi que la primera cuota de cada venta que aparece es la mas
-      // proxima.
-      const noPagadas = data.filter((c) => c.estado !== 'pagada');
-      const primeraPorVenta = new Map<number, CuotaConVenta>();
-      for (const c of noPagadas) {
-        if (!primeraPorVenta.has(c.idVenta)) {
-          primeraPorVenta.set(c.idVenta, c);
-        }
-      }
-      this.cuotasPendientes.set(Array.from(primeraPorVenta.values()));
-    });
   }
 
   nombreComprador(celular: string | null): string {
@@ -234,6 +223,7 @@ export class VentasComponent implements OnInit {
         medioPago: this.form.medioPago,
         numCuotas: this.form.medioPago === 'cuotas' ? this.form.numCuotas : undefined,
         frecuenciaCuotas: this.form.medioPago === 'cuotas' ? this.form.frecuenciaCuotas : undefined,
+        recargoCuotas: this.form.medioPago === 'cuotas' ? (this.form.recargoCuotas ?? undefined) : undefined,
         canal: this.form.canal,
         vendedorId: this.auth.esManagerOAdmin() ? (this.form.vendedorId ?? undefined) : undefined,
       })
@@ -246,11 +236,11 @@ export class VentasComponent implements OnInit {
           );
           this.guardando.set(false);
           const vendedorPrevio = this.form.vendedorId;
-          this.form = { ...formVacio(), vendedorId: vendedorPrevio };
+          const recargoPrevio = this.form.recargoCuotas;
+          this.form = { ...formVacio(), vendedorId: vendedorPrevio, recargoCuotas: recargoPrevio };
           this.esCompradorNuevo.set(false);
           this.compradorNuevo = { ...COMPRADOR_NUEVO_VACIO };
           this.cargarVentas();
-          this.cargarCuotasPendientes();
           this.productosService.listar().subscribe((data) => this.productos.set(data));
           this.compradoresService.listar().subscribe((data) => this.compradores.set(data));
         },
@@ -261,45 +251,6 @@ export class VentasComponent implements OnInit {
       });
   }
 
-  pagarCuota(cuota: CuotaConVenta): void {
-    this.pagandoCuotaId.set(cuota.id);
-    this.cuotasService.pagar(cuota.id).subscribe({
-      next: () => {
-        this.pagandoCuotaId.set(null);
-        this.cargarCuotasPendientes();
-      },
-      error: (err) => {
-        this.error.set(extractError(err));
-        this.pagandoCuotaId.set(null);
-      },
-    });
-  }
-
-  editarFechaCuota(cuota: CuotaConVenta): void {
-    this.editandoFechaCuotaId.set(cuota.id);
-    this.nuevaFechaCuota = cuota.fechaVencimiento.slice(0, 10);
-  }
-
-  cancelarFechaCuota(): void {
-    this.editandoFechaCuotaId.set(null);
-  }
-
-  guardarFechaCuota(cuota: CuotaConVenta): void {
-    if (!this.nuevaFechaCuota) return;
-    this.guardandoFechaCuotaId.set(cuota.id);
-    this.cuotasService.actualizarFecha(cuota.id, this.nuevaFechaCuota).subscribe({
-      next: () => {
-        this.guardandoFechaCuotaId.set(null);
-        this.editandoFechaCuotaId.set(null);
-        this.cargarCuotasPendientes();
-      },
-      error: (err) => {
-        this.error.set(extractError(err));
-        this.guardandoFechaCuotaId.set(null);
-      },
-    });
-  }
-
   eliminarVenta(v: Venta): void {
     if (!confirm(`¿Eliminar la venta #${v.id} (${resumenProductosVenta(v.items)})? Esto restaura el stock y no se puede deshacer.`)) {
       return;
@@ -307,7 +258,6 @@ export class VentasComponent implements OnInit {
     this.ventasService.eliminar(v.id).subscribe({
       next: () => {
         this.cargarVentas();
-        this.cargarCuotasPendientes();
         this.productosService.listar().subscribe((data) => this.productos.set(data));
       },
       error: (err) => this.error.set(extractError(err)),
@@ -384,7 +334,6 @@ export class VentasComponent implements OnInit {
           this.guardandoEdicion.set(false);
           this.editandoVentaId.set(null);
           this.cargarVentas();
-          this.cargarCuotasPendientes();
           this.productosService.listar().subscribe((data) => this.productos.set(data));
         },
         error: (err) => {

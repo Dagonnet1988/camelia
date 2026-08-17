@@ -30,6 +30,7 @@ const registrarVentaSchema = z
     medioPago: z.enum(["contado", "cuotas"]),
     numCuotas: z.number().int().min(1).max(3).optional(),
     frecuenciaCuotas: z.enum(["semanal", "quincenal", "mensual"]).optional(),
+    recargoCuotas: z.number().nonnegative().optional(),
     canal: z.enum(["whatsapp", "presencial"]),
     fechaVenta: z.coerce.date().optional(),
     vendedorId: z.number().int().positive().optional(),

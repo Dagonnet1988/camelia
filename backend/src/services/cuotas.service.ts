@@ -19,7 +19,7 @@ export async function listarCuotas(filtros: FiltrosCuotas) {
   await marcarAtrasadas();
   return prisma.cuota.findMany({
     where: { estado: filtros.estado, idVenta: filtros.idVenta },
-    include: { venta: true },
+    include: { venta: { include: { items: { include: { producto: true } } } } },
     orderBy: { fechaVencimiento: "asc" },
   });
 }

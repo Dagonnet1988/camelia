@@ -22,6 +22,7 @@ import {
 } from '../shared/chart/chart-presets';
 import { ChartComponent } from '../shared/chart/chart.component';
 import { StatTileComponent } from '../shared/stat-tile/stat-tile.component';
+import { resumenProductosVenta } from '../shared/venta-resumen';
 
 const MONEDA = new Intl.NumberFormat('es-CO', {
   style: 'currency',
@@ -44,6 +45,8 @@ const MES = new Intl.DateTimeFormat('es-CO', { month: 'short', year: 'numeric', 
 })
 export class DashboardComponent implements OnInit {
   private theme = getChartTheme();
+
+  resumenProductosVenta = resumenProductosVenta;
 
   rotacionDias = signal(30);
   gananciaPeriodo = signal<'semana' | 'mes'>('mes');

@@ -19,3 +19,29 @@
   cursor: pointer;
   margin-bottom: 14px;
 }
+
+.linea-venta {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.linea-venta-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+
+  strong {
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+}
+
+.linea-venta-acciones {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}

@@ -51,10 +51,15 @@ const COMPRADORES = [
   { celular: "3056667788", nombre: "Daniela Perez" },
 ];
 
-interface VentaSeed {
+interface ItemVentaSeed {
   codigoProducto: string;
-  compradorCelular?: string;
   cantidad: number;
+  valorUnitario?: number;
+}
+
+interface VentaSeed {
+  items: ItemVentaSeed[];
+  compradorCelular?: string;
   medioPago: MedioPago;
   numCuotas?: number;
   frecuenciaCuotas?: FrecuenciaCuotas;
@@ -66,26 +71,29 @@ interface VentaSeed {
 // desde el modulo Comisiones) en vez de un valor por venta - ver SEED_RECARGO_CUOTAS abajo.
 const SEED_RECARGO_CUOTAS = 5000;
 
+// La mayoria de las ventas de prueba son de un solo producto, pero unas cuantas (marcadas
+// abajo) tienen varias lineas a proposito, para ejercitar el camino de codigo multi-producto
+// tambien en desarrollo (stock/ganancia por linea, cuotas sobre el total agregado).
 const VENTAS: VentaSeed[] = [
-  { codigoProducto: "SEED-ARE-01", compradorCelular: "3001112233", cantidad: 2, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(58) },
-  { codigoProducto: "SEED-ANI-01", compradorCelular: "3012223344", cantidad: 1, medioPago: "cuotas", numCuotas: 2, frecuenciaCuotas: "mensual", canal: "whatsapp", fechaVenta: dias(70) },
-  { codigoProducto: "SEED-MAN-01", cantidad: 1, medioPago: "contado", canal: "presencial", fechaVenta: dias(52) },
-  { codigoProducto: "SEED-COL-01", compradorCelular: "3023334455", cantidad: 1, medioPago: "cuotas", numCuotas: 3, frecuenciaCuotas: "mensual", canal: "whatsapp", fechaVenta: dias(45) },
-  { codigoProducto: "SEED-ARE-02", compradorCelular: "3034445566", cantidad: 1, medioPago: "contado", canal: "presencial", fechaVenta: dias(40) },
-  { codigoProducto: "SEED-ANI-02", cantidad: 1, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(38) },
-  { codigoProducto: "SEED-MAN-02", compradorCelular: "3001112233", cantidad: 2, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(35) },
-  { codigoProducto: "SEED-OTR-01", compradorCelular: "3045556677", cantidad: 1, medioPago: "cuotas", numCuotas: 3, frecuenciaCuotas: "mensual", canal: "presencial", fechaVenta: dias(32) },
-  { codigoProducto: "SEED-COL-02", compradorCelular: "3056667788", cantidad: 1, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(28) },
-  { codigoProducto: "SEED-ARE-01", compradorCelular: "3012223344", cantidad: 1, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(25) },
-  { codigoProducto: "SEED-ANI-01", cantidad: 1, medioPago: "contado", canal: "presencial", fechaVenta: dias(22) },
-  { codigoProducto: "SEED-MAN-01", compradorCelular: "3023334455", cantidad: 2, medioPago: "cuotas", numCuotas: 2, frecuenciaCuotas: "mensual", canal: "whatsapp", fechaVenta: dias(20) },
-  { codigoProducto: "SEED-ARE-02", cantidad: 1, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(18) },
-  { codigoProducto: "SEED-COL-01", compradorCelular: "3034445566", cantidad: 1, medioPago: "contado", canal: "presencial", fechaVenta: dias(15) },
-  { codigoProducto: "SEED-ANI-02", compradorCelular: "3001112233", cantidad: 1, medioPago: "cuotas", numCuotas: 1, frecuenciaCuotas: "mensual", canal: "whatsapp", fechaVenta: dias(12) },
-  { codigoProducto: "SEED-MAN-02", cantidad: 1, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(9) },
-  { codigoProducto: "SEED-ARE-01", compradorCelular: "3045556677", cantidad: 3, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(6) },
-  { codigoProducto: "SEED-OTR-01", compradorCelular: "3056667788", cantidad: 1, medioPago: "cuotas", numCuotas: 2, frecuenciaCuotas: "mensual", canal: "presencial", fechaVenta: dias(4) },
-  { codigoProducto: "SEED-COL-02", cantidad: 1, medioPago: "contado", canal: "whatsapp", fechaVenta: dias(2) },
+  { items: [{ codigoProducto: "SEED-ARE-01", cantidad: 2 }, { codigoProducto: "SEED-MAN-02", cantidad: 1 }], compradorCelular: "3001112233", medioPago: "contado", canal: "whatsapp", fechaVenta: dias(58) },
+  { items: [{ codigoProducto: "SEED-ANI-01", cantidad: 1 }, { codigoProducto: "SEED-MAN-01", cantidad: 1 }], compradorCelular: "3012223344", medioPago: "cuotas", numCuotas: 2, frecuenciaCuotas: "mensual", canal: "whatsapp", fechaVenta: dias(70) },
+  { items: [{ codigoProducto: "SEED-MAN-01", cantidad: 1 }], medioPago: "contado", canal: "presencial", fechaVenta: dias(52) },
+  { items: [{ codigoProducto: "SEED-COL-01", cantidad: 1 }, { codigoProducto: "SEED-COL-02", cantidad: 1 }], compradorCelular: "3023334455", medioPago: "cuotas", numCuotas: 3, frecuenciaCuotas: "mensual", canal: "whatsapp", fechaVenta: dias(45) },
+  { items: [{ codigoProducto: "SEED-ARE-02", cantidad: 1 }], compradorCelular: "3034445566", medioPago: "contado", canal: "presencial", fechaVenta: dias(40) },
+  { items: [{ codigoProducto: "SEED-ANI-02", cantidad: 1 }], medioPago: "contado", canal: "whatsapp", fechaVenta: dias(38) },
+  { items: [{ codigoProducto: "SEED-MAN-02", cantidad: 2 }], compradorCelular: "3001112233", medioPago: "contado", canal: "whatsapp", fechaVenta: dias(35) },
+  { items: [{ codigoProducto: "SEED-OTR-01", cantidad: 1 }, { codigoProducto: "SEED-ARE-02", cantidad: 2 }, { codigoProducto: "SEED-ANI-02", cantidad: 1 }], compradorCelular: "3045556677", medioPago: "cuotas", numCuotas: 3, frecuenciaCuotas: "mensual", canal: "presencial", fechaVenta: dias(32) },
+  { items: [{ codigoProducto: "SEED-COL-02", cantidad: 1 }], compradorCelular: "3056667788", medioPago: "contado", canal: "whatsapp", fechaVenta: dias(28) },
+  { items: [{ codigoProducto: "SEED-ARE-01", cantidad: 1 }], compradorCelular: "3012223344", medioPago: "contado", canal: "whatsapp", fechaVenta: dias(25) },
+  { items: [{ codigoProducto: "SEED-ANI-01", cantidad: 1 }], medioPago: "contado", canal: "presencial", fechaVenta: dias(22) },
+  { items: [{ codigoProducto: "SEED-MAN-01", cantidad: 2 }], compradorCelular: "3023334455", medioPago: "cuotas", numCuotas: 2, frecuenciaCuotas: "mensual", canal: "whatsapp", fechaVenta: dias(20) },
+  { items: [{ codigoProducto: "SEED-ARE-02", cantidad: 1 }], medioPago: "contado", canal: "whatsapp", fechaVenta: dias(18) },
+  { items: [{ codigoProducto: "SEED-COL-01", cantidad: 1 }], compradorCelular: "3034445566", medioPago: "contado", canal: "presencial", fechaVenta: dias(15) },
+  { items: [{ codigoProducto: "SEED-ANI-02", cantidad: 1 }], compradorCelular: "3001112233", medioPago: "cuotas", numCuotas: 1, frecuenciaCuotas: "mensual", canal: "whatsapp", fechaVenta: dias(12) },
+  { items: [{ codigoProducto: "SEED-MAN-02", cantidad: 1 }], medioPago: "contado", canal: "whatsapp", fechaVenta: dias(9) },
+  { items: [{ codigoProducto: "SEED-ARE-01", cantidad: 3 }], compradorCelular: "3045556677", medioPago: "contado", canal: "whatsapp", fechaVenta: dias(6) },
+  { items: [{ codigoProducto: "SEED-OTR-01", cantidad: 1 }], compradorCelular: "3056667788", medioPago: "cuotas", numCuotas: 2, frecuenciaCuotas: "mensual", canal: "presencial", fechaVenta: dias(4) },
+  { items: [{ codigoProducto: "SEED-COL-02", cantidad: 1 }], medioPago: "contado", canal: "whatsapp", fechaVenta: dias(2) },
 ];
 
 async function yaSembrado(): Promise<boolean> {

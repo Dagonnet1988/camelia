@@ -162,7 +162,7 @@ async function recalcularProducto(tx: Prisma.TransactionClient, codigoProducto: 
     stock += c.cantidad;
   }
 
-  const ventasAgregado = await tx.venta.aggregate({
+  const ventasAgregado = await tx.ventaItem.aggregate({
     where: { codigoProducto },
     _sum: { cantidad: true },
   });

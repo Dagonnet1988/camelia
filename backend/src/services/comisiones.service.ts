@@ -36,7 +36,7 @@ export async function resumenPorVendedor() {
 export function ventasPendientes(vendedorId: number) {
   return prisma.venta.findMany({
     where: { vendedorId, comisionEstado: "pendiente" },
-    include: { producto: { select: { nombre: true } } },
+    include: { items: { include: { producto: { select: { nombre: true } } } } },
     orderBy: { fechaVenta: "asc" },
   });
 }
@@ -83,7 +83,10 @@ export async function obtenerLiquidacion(id: number) {
     include: {
       vendedor: { select: { nombre: true, apellido: true } },
       generadaPor: { select: { nombre: true, apellido: true } },
-      ventas: { include: { producto: { select: { nombre: true } } }, orderBy: { fechaVenta: "asc" } },
+      ventas: {
+        include: { items: { include: { producto: { select: { nombre: true } } } } },
+        orderBy: { fechaVenta: "asc" },
+      },
     },
   });
   if (!liquidacion) throw new ApiError(404, `Liquidacion ${id} no existe`);

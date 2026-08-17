@@ -15,11 +15,15 @@ export interface CompradorNuevoInput {
   nombre: string;
 }
 
-export interface RegistrarVentaInput {
+export interface LineaVentaInput {
   codigoProducto: string;
-  compradorCelular?: string;
   cantidad: number;
-  valorContado?: number;
+  valorUnitario?: number; // default: producto.valorVenta
+}
+
+export interface RegistrarVentaInput {
+  items: LineaVentaInput[];
+  compradorCelular?: string;
   medioPago: MedioPago;
   numCuotas?: number;
   frecuenciaCuotas?: FrecuenciaCuotas;
@@ -30,11 +34,17 @@ export interface RegistrarVentaInput {
   compradorNuevo?: CompradorNuevoInput;
 }
 
+export interface LineaVentaEdicionInput {
+  id?: number; // presente = linea existente que se ajusta; ausente = linea nueva
+  codigoProducto: string;
+  cantidad: number;
+  valorUnitario: number;
+}
+
 export interface ActualizarVentaInput {
+  items: LineaVentaEdicionInput[];
   compradorCelular?: string;
   compradorNuevo?: CompradorNuevoInput;
-  cantidad: number;
-  valorContado: number;
   medioPago: MedioPago;
   numCuotas?: number;
   frecuenciaCuotas?: FrecuenciaCuotas;
@@ -52,10 +62,16 @@ export interface FiltrosVentas {
   hasta?: Date;
 }
 
+const INCLUDE_VENTA = {
+  items: { include: { producto: true } },
+  cuotas: true,
+  vendedor: { select: { id: true, nombre: true, apellido: true } },
+} satisfies Prisma.VentaInclude;
+
 export function listarVentas(filtros: FiltrosVentas) {
   return prisma.venta.findMany({
     where: {
-      codigoProducto: filtros.codigoProducto,
+      items: filtros.codigoProducto ? { some: { codigoProducto: filtros.codigoProducto } } : undefined,
       compradorCelular: filtros.compradorCelular,
       canal: filtros.canal,
       vendedorId: filtros.vendedorId,
@@ -64,16 +80,13 @@ export function listarVentas(filtros: FiltrosVentas) {
         lte: filtros.hasta,
       },
     },
-    include: { cuotas: true, vendedor: { select: { id: true, nombre: true, apellido: true } } },
+    include: INCLUDE_VENTA,
     orderBy: { fechaVenta: "desc" },
   });
 }
 
 export async function obtenerVenta(id: number) {
-  const venta = await prisma.venta.findUnique({
-    where: { id },
-    include: { cuotas: true, vendedor: { select: { id: true, nombre: true, apellido: true } } },
-  });
+  const venta = await prisma.venta.findUnique({ where: { id }, include: INCLUDE_VENTA });
   if (!venta) throw new ApiError(404, `Venta ${id} no existe`);
   return venta;
 }
@@ -92,96 +105,131 @@ function validarCamposCuotas(
   }
 }
 
-export async function registrarVenta(input: RegistrarVentaInput) {
-  validarCamposCuotas(input.medioPago, input.numCuotas, input.frecuenciaCuotas);
+// Suma la cantidad por producto entre varias lineas - el mismo producto puede aparecer en mas
+// de una linea (ej. mismo articulo a dos precios distintos), y el stock se valida/descuenta
+// una sola vez por producto, no por linea.
+function agruparCantidadPorProducto(items: { codigoProducto: string; cantidad: number }[]): Map<string, number> {
+  const mapa = new Map<string, number>();
+  for (const item of items) {
+    mapa.set(item.codigoProducto, (mapa.get(item.codigoProducto) ?? 0) + item.cantidad);
+  }
+  return mapa;
+}
 
-  return prisma.$transaction(async (tx) => {
-    const producto = await tx.producto.findUnique({ where: { codigo: input.codigoProducto } });
-    if (!producto) throw new ApiError(404, `Producto ${input.codigoProducto} no existe`);
-    if (producto.stockActual < input.cantidad) {
-      throw new ApiError(400, `Stock insuficiente para ${input.codigoProducto}: disponible ${producto.stockActual}, solicitado ${input.cantidad}`);
+async function registrarVentaEnTx(tx: Prisma.TransactionClient, input: RegistrarVentaInput) {
+  if (input.items.length === 0) throw new ApiError(400, "La venta debe tener al menos un producto");
+
+  const fechaVenta = comoBogota(input.fechaVenta ?? new Date());
+  const cantidadPorProducto = agruparCantidadPorProducto(input.items);
+
+  const productos = new Map<string, Prisma.ProductoGetPayload<{}>>();
+  for (const [codigo, cantidadTotal] of cantidadPorProducto) {
+    const producto = await tx.producto.findUnique({ where: { codigo } });
+    if (!producto) throw new ApiError(404, `Producto ${codigo} no existe`);
+    if (producto.stockActual < cantidadTotal) {
+      throw new ApiError(
+        400,
+        `Stock insuficiente para ${codigo}: disponible ${producto.stockActual}, solicitado ${cantidadTotal}`,
+      );
     }
+    productos.set(codigo, producto);
+  }
 
-    const fechaVenta = comoBogota(input.fechaVenta ?? new Date());
-
-    if (input.compradorCelular) {
-      const comprador = await tx.comprador.findUnique({ where: { celular: input.compradorCelular } });
-      if (!comprador) {
-        if (!input.compradorNuevo) {
-          throw new ApiError(
-            404,
-            `Comprador ${input.compradorCelular} no existe. Incluye compradorNuevo (nombre) para crearlo con esta venta.`,
-          );
-        }
-        await tx.comprador.create({
-          data: {
-            celular: input.compradorCelular,
-            nombre: input.compradorNuevo.nombre,
-            fechaPrimeraCompra: fechaVenta,
-          },
-        });
+  if (input.compradorCelular) {
+    const comprador = await tx.comprador.findUnique({ where: { celular: input.compradorCelular } });
+    if (!comprador) {
+      if (!input.compradorNuevo) {
+        throw new ApiError(
+          404,
+          `Comprador ${input.compradorCelular} no existe. Incluye compradorNuevo (nombre) para crearlo con esta venta.`,
+        );
       }
-    }
-
-    const vendedor = input.vendedorId
-      ? await tx.usuario.findUnique({ where: { id: input.vendedorId } })
-      : null;
-
-    // El recargo por cuotas parte del valor global configurado en Comisiones; se puede
-    // ajustar despues por venta individual desde la edicion (ver actualizarVenta).
-    const config = input.medioPago === "cuotas" ? await tx.configuracionApp.findUnique({ where: { id: 1 } }) : null;
-    const cantidad = new Prisma.Decimal(input.cantidad);
-    const recargoCuotas = config?.recargoCuotasGlobal ?? new Prisma.Decimal(0);
-    const valorContado =
-      input.valorContado !== undefined ? new Prisma.Decimal(input.valorContado) : producto.valorVenta.mul(cantidad);
-    const valorTotalVenta = valorContado.add(recargoCuotas);
-    // El nombre del campo (costo_promedio_al_momento) es historico: la ganancia se calcula con
-    // el costo de la compra mas reciente del producto, no con el promedio ponderado (pedido
-    // explicito del usuario - el promedio "no refleja lo que realmente costo ese stock"). Si el
-    // producto no tiene ninguna compra registrada (no deberia pasar, todo producto nace de una
-    // Compra), cae de vuelta al promedio ponderado solo para no dejar la venta sin costo.
-    const costoPromedioAlMomento = (await costoUltimaCompra(tx, input.codigoProducto)) ?? producto.costoPromedio;
-    const ganancia = valorTotalVenta.sub(costoPromedioAlMomento.mul(cantidad));
-    const comisionPorcentaje = vendedor?.porcentajeComision ?? new Prisma.Decimal(0);
-    const comision = valorTotalVenta.mul(comisionPorcentaje).div(100);
-
-    await tx.producto.update({
-      where: { codigo: input.codigoProducto },
-      data: { stockActual: { decrement: input.cantidad } },
-    });
-
-    const venta = await tx.venta.create({
-      data: {
-        codigoProducto: input.codigoProducto,
-        compradorCelular: input.compradorCelular,
-        cantidad: input.cantidad,
-        valorContado,
-        medioPago: input.medioPago,
-        numCuotas: input.medioPago === "cuotas" ? input.numCuotas : null,
-        frecuenciaCuotas: input.medioPago === "cuotas" ? input.frecuenciaCuotas : null,
-        recargoCuotas: input.medioPago === "cuotas" ? recargoCuotas : null,
-        valorTotalVenta,
-        costoPromedioAlMomento,
-        ganancia,
-        canal: input.canal,
-        fechaVenta,
-        vendedorId: input.vendedorId,
-        comisionPorcentaje,
-        comision,
-      },
-    });
-
-    if (input.medioPago === "cuotas" && input.numCuotas && input.frecuenciaCuotas) {
-      await tx.cuota.createMany({
-        data: generarCuotas(venta.id, valorTotalVenta, input.numCuotas, input.frecuenciaCuotas, fechaVenta),
+      await tx.comprador.create({
+        data: {
+          celular: input.compradorCelular,
+          nombre: input.compradorNuevo.nombre,
+          fechaPrimeraCompra: fechaVenta,
+        },
       });
     }
+  }
 
-    return tx.venta.findUniqueOrThrow({
-      where: { id: venta.id },
-      include: { cuotas: true, vendedor: { select: { id: true, nombre: true, apellido: true } } },
+  const vendedor = input.vendedorId ? await tx.usuario.findUnique({ where: { id: input.vendedorId } }) : null;
+
+  // El recargo por cuotas parte del valor global configurado en Comisiones; se puede ajustar
+  // despues por venta individual desde la edicion (ver actualizarVenta).
+  const config = input.medioPago === "cuotas" ? await tx.configuracionApp.findUnique({ where: { id: 1 } }) : null;
+  const recargoCuotas = config?.recargoCuotasGlobal ?? new Prisma.Decimal(0);
+
+  // El nombre del campo (costo_unitario_al_momento) es historico: la ganancia se calcula con el
+  // costo de la compra mas reciente del producto, no con el promedio ponderado (pedido explicito
+  // del usuario - el promedio "no refleja lo que realmente costo ese stock"). Si el producto no
+  // tiene ninguna compra registrada (no deberia pasar, todo producto nace de una Compra), cae de
+  // vuelta al promedio ponderado solo para no dejar la linea sin costo.
+  const lineas: {
+    codigoProducto: string;
+    cantidad: number;
+    valorUnitario: Prisma.Decimal;
+    costoUnitarioAlMomento: Prisma.Decimal;
+    ganancia: Prisma.Decimal;
+  }[] = [];
+  for (const item of input.items) {
+    const producto = productos.get(item.codigoProducto)!;
+    const cantidad = new Prisma.Decimal(item.cantidad);
+    const valorUnitario =
+      item.valorUnitario !== undefined ? new Prisma.Decimal(item.valorUnitario) : producto.valorVenta;
+    const costoUnitarioAlMomento = (await costoUltimaCompra(tx, item.codigoProducto)) ?? producto.costoPromedio;
+    const gananciaLinea = valorUnitario.sub(costoUnitarioAlMomento).mul(cantidad);
+    lineas.push({
+      codigoProducto: item.codigoProducto,
+      cantidad: item.cantidad,
+      valorUnitario,
+      costoUnitarioAlMomento,
+      ganancia: gananciaLinea,
     });
+  }
+
+  const valorContado = lineas.reduce((acc, l) => acc.add(l.valorUnitario.mul(l.cantidad)), new Prisma.Decimal(0));
+  const valorTotalVenta = valorContado.add(recargoCuotas);
+  const ganancia = lineas.reduce((acc, l) => acc.add(l.ganancia), new Prisma.Decimal(0));
+  const comisionPorcentaje = vendedor?.porcentajeComision ?? new Prisma.Decimal(0);
+  const comision = valorTotalVenta.mul(comisionPorcentaje).div(100);
+
+  for (const [codigo, cantidadTotal] of cantidadPorProducto) {
+    await tx.producto.update({ where: { codigo }, data: { stockActual: { decrement: cantidadTotal } } });
+  }
+
+  const venta = await tx.venta.create({
+    data: {
+      compradorCelular: input.compradorCelular,
+      valorContado,
+      medioPago: input.medioPago,
+      numCuotas: input.medioPago === "cuotas" ? input.numCuotas : null,
+      frecuenciaCuotas: input.medioPago === "cuotas" ? input.frecuenciaCuotas : null,
+      recargoCuotas: input.medioPago === "cuotas" ? recargoCuotas : null,
+      valorTotalVenta,
+      ganancia,
+      canal: input.canal,
+      fechaVenta,
+      vendedorId: input.vendedorId,
+      comisionPorcentaje,
+      comision,
+      items: { create: lineas },
+    },
   });
+
+  if (input.medioPago === "cuotas" && input.numCuotas && input.frecuenciaCuotas) {
+    await tx.cuota.createMany({
+      data: generarCuotas(venta.id, valorTotalVenta, input.numCuotas, input.frecuenciaCuotas, fechaVenta),
+    });
+  }
+
+  return tx.venta.findUniqueOrThrow({ where: { id: venta.id }, include: INCLUDE_VENTA });
+}
+
+export async function registrarVenta(input: RegistrarVentaInput) {
+  validarCamposCuotas(input.medioPago, input.numCuotas, input.frecuenciaCuotas);
+  return prisma.$transaction((tx) => registrarVentaEnTx(tx, input));
 }
 
 export async function actualizarVenta(id: number, input: ActualizarVentaInput) {
@@ -189,9 +237,10 @@ export async function actualizarVenta(id: number, input: ActualizarVentaInput) {
   if (input.medioPago === "cuotas" && input.recargoCuotas === undefined) {
     throw new ApiError(400, "recargo_cuotas es requerido para ventas a cuotas");
   }
+  if (input.items.length === 0) throw new ApiError(400, "La venta debe tener al menos un producto");
 
   return prisma.$transaction(async (tx) => {
-    const existente = await tx.venta.findUnique({ where: { id }, include: { cuotas: true } });
+    const existente = await tx.venta.findUnique({ where: { id }, include: { cuotas: true, items: true } });
     if (!existente) throw new ApiError(404, `Venta ${id} no existe`);
     if (existente.comisionEstado === "liquidada") {
       throw new ApiError(400, "No se puede editar una venta cuya comision ya fue liquidada");
@@ -200,13 +249,31 @@ export async function actualizarVenta(id: number, input: ActualizarVentaInput) {
       throw new ApiError(400, "No se puede editar una venta que ya tiene cuotas pagadas");
     }
 
-    const producto = await tx.producto.findUniqueOrThrow({ where: { codigo: existente.codigoProducto } });
-    const stockDisponible = producto.stockActual + existente.cantidad;
-    if (stockDisponible < input.cantidad) {
-      throw new ApiError(
-        400,
-        `Stock insuficiente para ${existente.codigoProducto}: disponible ${stockDisponible}, solicitado ${input.cantidad}`,
-      );
+    const idsExistentes = new Set(existente.items.map((i) => i.id));
+    for (const item of input.items) {
+      if (item.id !== undefined && !idsExistentes.has(item.id)) {
+        throw new ApiError(400, `La linea ${item.id} no pertenece a esta venta`);
+      }
+    }
+
+    // Stock por diferencia AGREGADA por producto (no por linea) - evita bugs de aritmetica
+    // cuando un producto se mueve entre lineas o queda duplicado en el mismo pedido.
+    const cantidadViejaPorProducto = agruparCantidadPorProducto(existente.items);
+    const cantidadNuevaPorProducto = agruparCantidadPorProducto(input.items);
+    const productosAfectados = new Set([...cantidadViejaPorProducto.keys(), ...cantidadNuevaPorProducto.keys()]);
+
+    const productos = new Map<string, Prisma.ProductoGetPayload<{}>>();
+    const stockFinalPorProducto = new Map<string, number>();
+    for (const codigo of productosAfectados) {
+      const producto = await tx.producto.findUnique({ where: { codigo } });
+      if (!producto) throw new ApiError(404, `Producto ${codigo} no existe`);
+      const stockFinal =
+        producto.stockActual + (cantidadViejaPorProducto.get(codigo) ?? 0) - (cantidadNuevaPorProducto.get(codigo) ?? 0);
+      if (stockFinal < 0) {
+        throw new ApiError(400, `Stock insuficiente para ${codigo}: la edicion lo dejaria en ${stockFinal}`);
+      }
+      productos.set(codigo, producto);
+      stockFinalPorProducto.set(codigo, stockFinal);
     }
 
     if (input.compradorCelular) {
@@ -229,36 +296,60 @@ export async function actualizarVenta(id: number, input: ActualizarVentaInput) {
     }
 
     const vendedorIdEfectivo = input.vendedorId !== undefined ? input.vendedorId : existente.vendedorId;
-    const vendedor = vendedorIdEfectivo
-      ? await tx.usuario.findUnique({ where: { id: vendedorIdEfectivo } })
-      : null;
+    const vendedor = vendedorIdEfectivo ? await tx.usuario.findUnique({ where: { id: vendedorIdEfectivo } }) : null;
 
-    // A diferencia de la creacion, en la edicion el recargo lo decide quien edita (no se
-    // vuelve a tomar del global) - permite ajustarlo caso a caso sin romper el calculo de cuotas.
-    const cantidad = new Prisma.Decimal(input.cantidad);
+    // A diferencia de la creacion, en la edicion el recargo lo decide quien edita (no se vuelve
+    // a tomar del global) - permite ajustarlo caso a caso sin romper el calculo de cuotas.
     const recargoCuotas =
       input.medioPago === "cuotas" ? new Prisma.Decimal(input.recargoCuotas as number) : new Prisma.Decimal(0);
-    const valorContado = new Prisma.Decimal(input.valorContado);
+
+    const itemsExistentesPorId = new Map(existente.items.map((i) => [i.id, i]));
+    const lineas: {
+      codigoProducto: string;
+      cantidad: number;
+      valorUnitario: Prisma.Decimal;
+      costoUnitarioAlMomento: Prisma.Decimal;
+      ganancia: Prisma.Decimal;
+    }[] = [];
+    for (const item of input.items) {
+      const producto = productos.get(item.codigoProducto)!;
+      const cantidad = new Prisma.Decimal(item.cantidad);
+      const valorUnitario = new Prisma.Decimal(item.valorUnitario);
+      const lineaExistente = item.id !== undefined ? itemsExistentesPorId.get(item.id) : undefined;
+      // Preserva el costo historico si la linea ya existia (misma logica que antes con
+      // costoPromedioAlMomento - la ganancia historica no se recalcula con costos actuales);
+      // una linea realmente nueva (sin id, o con un producto que no estaba antes) calcula costo
+      // fresco igual que en la creacion.
+      const costoUnitarioAlMomento = lineaExistente
+        ? lineaExistente.costoUnitarioAlMomento
+        : ((await costoUltimaCompra(tx, item.codigoProducto)) ?? producto.costoPromedio);
+      const gananciaLinea = valorUnitario.sub(costoUnitarioAlMomento).mul(cantidad);
+      lineas.push({
+        codigoProducto: item.codigoProducto,
+        cantidad: item.cantidad,
+        valorUnitario,
+        costoUnitarioAlMomento,
+        ganancia: gananciaLinea,
+      });
+    }
+
+    const valorContado = lineas.reduce((acc, l) => acc.add(l.valorUnitario.mul(l.cantidad)), new Prisma.Decimal(0));
     const valorTotalVenta = valorContado.add(recargoCuotas);
-    // costoPromedioAlMomento se conserva del valor original: la ganancia historica no se
-    // distorsiona aunque el costo promedio del producto haya cambiado desde esta venta.
-    const costoPromedioAlMomento = existente.costoPromedioAlMomento;
-    const ganancia = valorTotalVenta.sub(costoPromedioAlMomento.mul(cantidad));
+    const ganancia = lineas.reduce((acc, l) => acc.add(l.ganancia), new Prisma.Decimal(0));
     const comisionPorcentaje = vendedor?.porcentajeComision ?? new Prisma.Decimal(0);
     const comision = valorTotalVenta.mul(comisionPorcentaje).div(100);
 
-    await tx.producto.update({
-      where: { codigo: existente.codigoProducto },
-      data: { stockActual: stockDisponible - input.cantidad },
-    });
+    for (const [codigo, stockFinal] of stockFinalPorProducto) {
+      await tx.producto.update({ where: { codigo }, data: { stockActual: stockFinal } });
+    }
 
     await tx.cuota.deleteMany({ where: { idVenta: id } });
+    await tx.ventaItem.deleteMany({ where: { ventaId: id } });
 
     await tx.venta.update({
       where: { id },
       data: {
         compradorCelular: input.compradorCelular || null,
-        cantidad: input.cantidad,
         valorContado,
         medioPago: input.medioPago,
         numCuotas: input.medioPago === "cuotas" ? input.numCuotas : null,
@@ -270,6 +361,7 @@ export async function actualizarVenta(id: number, input: ActualizarVentaInput) {
         vendedorId: vendedorIdEfectivo,
         comisionPorcentaje,
         comision,
+        items: { create: lineas },
       },
     });
 
@@ -279,20 +371,19 @@ export async function actualizarVenta(id: number, input: ActualizarVentaInput) {
       });
     }
 
-    return tx.venta.findUniqueOrThrow({
-      where: { id },
-      include: { cuotas: true, vendedor: { select: { id: true, nombre: true, apellido: true } } },
-    });
+    return tx.venta.findUniqueOrThrow({ where: { id }, include: INCLUDE_VENTA });
   });
 }
 
 // Solo admin (ver ventas.routes.ts). Mismo guard que actualizarVenta - no se puede borrar una
 // venta cuya comision ya fue liquidada, ni una con alguna cuota ya pagada (perderia el
-// historial real de cobro). Revierte el stock descontado y borra las cuotas antes de la venta
-// (no hay onDelete: Cascade en el schema) - todo en una sola transaccion.
+// historial real de cobro). Revierte el stock descontado (agregado por producto - el mismo
+// producto puede estar en varias lineas) y borra las cuotas antes de la venta (no hay
+// onDelete: Cascade en esa relacion); las lineas (VentaItem) se borran solas por cascada al
+// borrar la venta. Todo en una sola transaccion.
 export async function eliminarVenta(id: number) {
   return prisma.$transaction(async (tx) => {
-    const existente = await tx.venta.findUnique({ where: { id }, include: { cuotas: true } });
+    const existente = await tx.venta.findUnique({ where: { id }, include: { cuotas: true, items: true } });
     if (!existente) throw new ApiError(404, `Venta ${id} no existe`);
     if (existente.comisionEstado === "liquidada") {
       throw new ApiError(400, "No se puede eliminar una venta cuya comision ya fue liquidada");
@@ -301,11 +392,12 @@ export async function eliminarVenta(id: number) {
       throw new ApiError(400, "No se puede eliminar una venta que ya tiene cuotas pagadas");
     }
 
+    const cantidadPorProducto = agruparCantidadPorProducto(existente.items);
+
     await tx.cuota.deleteMany({ where: { idVenta: id } });
-    await tx.producto.update({
-      where: { codigo: existente.codigoProducto },
-      data: { stockActual: { increment: existente.cantidad } },
-    });
+    for (const [codigo, cantidad] of cantidadPorProducto) {
+      await tx.producto.update({ where: { codigo }, data: { stockActual: { increment: cantidad } } });
+    }
     await tx.venta.delete({ where: { id } });
   });
 }

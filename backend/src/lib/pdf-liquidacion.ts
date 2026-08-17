@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import type { Response } from "express";
+import { resumenProductosVenta } from "./venta-resumen";
 
 const MONEDA = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 const FECHA = new Intl.DateTimeFormat("es-CO", { day: "2-digit", month: "short", year: "numeric" });
@@ -7,7 +8,7 @@ const FECHA = new Intl.DateTimeFormat("es-CO", { day: "2-digit", month: "short",
 interface VentaLiquidacion {
   id: number;
   fechaVenta: Date;
-  producto: { nombre: string };
+  items: { producto: { nombre: string } }[];
   valorTotalVenta: unknown;
   comisionPorcentaje: unknown;
   comision: unknown;
@@ -77,7 +78,7 @@ export function generarPdfLiquidacion(liquidacion: LiquidacionPdfInput, res: Res
     }
     dibujarFila([
       FECHA.format(v.fechaVenta),
-      v.producto.nombre,
+      resumenProductosVenta(v.items),
       MONEDA.format(Number(v.valorTotalVenta)),
       `${Number(v.comisionPorcentaje)}%`,
       MONEDA.format(Number(v.comision)),

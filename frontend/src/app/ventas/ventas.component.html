@@ -23,15 +23,45 @@
   </label>
 
   <form (ngSubmit)="registrar()">
-    <div class="form-grid">
-      <div class="field">
-        <label>Producto</label>
-        <app-producto-selector
-          [productos]="productos()"
-          [(codigo)]="form.codigoProducto"
-          (codigoChange)="recalcularValorSugerido()"
-        />
+    @for (linea of form.lineas; track linea; let i = $index) {
+      <div class="linea-venta">
+        <div class="linea-venta-header">
+          <strong>Producto {{ i + 1 }}</strong>
+          <button
+            class="btn btn-danger"
+            type="button"
+            (click)="quitarLinea(form.lineas, i)"
+            [disabled]="form.lineas.length === 1"
+          >
+            Quitar
+          </button>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Producto</label>
+            <app-producto-selector
+              [productos]="productos()"
+              [(codigo)]="linea.codigoProducto"
+              (codigoChange)="actualizarPrecioSugerido(linea)"
+            />
+          </div>
+          <div class="field">
+            <label>Cantidad</label>
+            <input type="number" [(ngModel)]="linea.cantidad" [name]="'cantidad' + i" min="1" required />
+          </div>
+          <div class="field">
+            <label>Valor unitario</label>
+            <input type="number" [(ngModel)]="linea.valorUnitario" [name]="'valorUnitario' + i" min="0" required />
+          </div>
+        </div>
       </div>
+    }
+    <div class="linea-venta-acciones">
+      <button class="btn btn-secondary" type="button" (click)="agregarLinea(form.lineas)">+ Agregar producto</button>
+      <span class="hint">Subtotal: {{ totalLineas(form.lineas) }}</span>
+    </div>
+
+    <div class="form-grid" style="margin-top: 16px">
       @if (!esCompradorNuevo()) {
         <div class="field">
           <label>Comprador (opcional)</label>
@@ -52,24 +82,6 @@
           <input name="compradorNuevoNombre" [(ngModel)]="compradorNuevo.nombre" required />
         </div>
       }
-      <div class="field">
-        <label>Cantidad</label>
-        <input
-          type="number"
-          name="cantidad"
-          [(ngModel)]="form.cantidad"
-          (ngModelChange)="recalcularValorSugerido()"
-          min="1"
-          required
-        />
-      </div>
-      <div class="field">
-        <label>Valor a cobrar</label>
-        <input type="number" name="valorContado" [(ngModel)]="form.valorContado" min="0" required />
-        @if (valorCatalogo() !== null) {
-          <span class="hint">Catalogo: {{ valorCatalogo() }} — editable por descuento</span>
-        }
-      </div>
       <div class="field">
         <label>Canal</label>
         <select name="canal" [(ngModel)]="form.canal">
@@ -124,7 +136,45 @@
     <h2>Editar venta #{{ editandoVentaId() }}</h2>
 
     <form (ngSubmit)="guardarEdicionVenta()">
-      <div class="form-grid">
+      @for (linea of formEdicion.lineas; track linea; let i = $index) {
+        <div class="linea-venta">
+          <div class="linea-venta-header">
+            <strong>Producto {{ i + 1 }}</strong>
+            <button
+              class="btn btn-danger"
+              type="button"
+              (click)="quitarLinea(formEdicion.lineas, i)"
+              [disabled]="formEdicion.lineas.length === 1"
+            >
+              Quitar
+            </button>
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label>Producto</label>
+              <app-producto-selector
+                [productos]="productos()"
+                [(codigo)]="linea.codigoProducto"
+                (codigoChange)="actualizarPrecioSugerido(linea)"
+              />
+            </div>
+            <div class="field">
+              <label>Cantidad</label>
+              <input type="number" [(ngModel)]="linea.cantidad" [name]="'cantidadEdicion' + i" min="1" required />
+            </div>
+            <div class="field">
+              <label>Valor unitario</label>
+              <input type="number" [(ngModel)]="linea.valorUnitario" [name]="'valorUnitarioEdicion' + i" min="0" required />
+            </div>
+          </div>
+        </div>
+      }
+      <div class="linea-venta-acciones">
+        <button class="btn btn-secondary" type="button" (click)="agregarLinea(formEdicion.lineas)">+ Agregar producto</button>
+        <span class="hint">Subtotal: {{ totalLineas(formEdicion.lineas) }}</span>
+      </div>
+
+      <div class="form-grid" style="margin-top: 16px">
         <div class="field">
           <label>Comprador (opcional)</label>
           <select name="compradorCelularEdicion" [(ngModel)]="formEdicion.compradorCelular">
@@ -133,14 +183,6 @@
               <option [value]="c.celular">{{ c.nombre }}</option>
             }
           </select>
-        </div>
-        <div class="field">
-          <label>Cantidad</label>
-          <input type="number" name="cantidadEdicion" [(ngModel)]="formEdicion.cantidad" min="1" required />
-        </div>
-        <div class="field">
-          <label>Valor a cobrar</label>
-          <input type="number" name="valorContadoEdicion" [(ngModel)]="formEdicion.valorContado" min="0" required />
         </div>
         <div class="field">
           <label>Canal</label>
@@ -241,9 +283,9 @@
         @for (v of ventas(); track v.id) {
           <tr>
             <td class="num">{{ v.id }}</td>
-            <td>{{ nombreProducto(v.codigoProducto) }}</td>
+            <td>{{ resumenProductosVenta(v.items) }}</td>
             <td>{{ nombreComprador(v.compradorCelular) }}</td>
-            <td class="num">{{ v.cantidad }}</td>
+            <td class="num">{{ cantidadTotal(v) }}</td>
             <td>{{ v.medioPago }}{{ v.numCuotas ? ' (' + v.numCuotas + ')' : '' }}</td>
             <td class="num">{{ v.valorTotalVenta }}</td>
             @if (auth.esManagerOAdmin()) {
@@ -297,7 +339,7 @@
         @for (c of cuotasPendientes(); track c.id) {
           <tr>
             <td class="num">{{ c.idVenta }}</td>
-            <td>{{ nombreProducto(c.venta.codigoProducto) }}</td>
+            <td>{{ resumenProductosVenta(c.venta.items) }}</td>
             <td>{{ nombreComprador(c.venta.compradorCelular) }}</td>
             <td class="num">{{ c.numeroCuota }} / {{ c.venta.numCuotas }}</td>
             <td class="num">{{ c.valorCuota }}</td>

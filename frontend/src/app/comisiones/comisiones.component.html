@@ -82,7 +82,7 @@
                         @for (v of ventasPendientesDetalle(); track v.id) {
                           <tr>
                             <td class="num">{{ v.id }}</td>
-                            <td>{{ v.producto.nombre }}</td>
+                            <td>{{ resumenProductosVenta(v.items) }}</td>
                             <td>{{ v.fechaVenta | date: 'dd/MM/yyyy':'UTC' }}</td>
                             <td class="num">{{ v.valorTotalVenta }}</td>
                             <td class="num">{{ v.comisionPorcentaje }}</td>

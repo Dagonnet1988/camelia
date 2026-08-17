@@ -9,13 +9,24 @@ const compradorNuevoSchema = z.object({
   nombre: z.string().min(1),
 });
 
+const lineaVentaSchema = z.object({
+  codigoProducto: z.string().min(1),
+  cantidad: z.number().int().positive(),
+  valorUnitario: z.number().nonnegative().optional(),
+});
+
+const lineaVentaEdicionSchema = z.object({
+  id: z.number().int().positive().optional(),
+  codigoProducto: z.string().min(1),
+  cantidad: z.number().int().positive(),
+  valorUnitario: z.number().nonnegative(),
+});
+
 const registrarVentaSchema = z
   .object({
-    codigoProducto: z.string().min(1),
+    items: z.array(lineaVentaSchema).min(1),
     compradorCelular: z.string().min(1).optional(),
     compradorNuevo: compradorNuevoSchema.optional(),
-    cantidad: z.number().int().positive(),
-    valorContado: z.number().nonnegative().optional(),
     medioPago: z.enum(["contado", "cuotas"]),
     numCuotas: z.number().int().min(1).max(3).optional(),
     frecuenciaCuotas: z.enum(["semanal", "quincenal", "mensual"]).optional(),
@@ -34,10 +45,9 @@ const registrarVentaSchema = z
 
 const actualizarVentaSchema = z
   .object({
+    items: z.array(lineaVentaEdicionSchema).min(1),
     compradorCelular: z.string().min(1).optional(),
     compradorNuevo: compradorNuevoSchema.optional(),
-    cantidad: z.number().int().positive(),
-    valorContado: z.number().nonnegative(),
     medioPago: z.enum(["contado", "cuotas"]),
     numCuotas: z.number().int().min(1).max(3).optional(),
     frecuenciaCuotas: z.enum(["semanal", "quincenal", "mensual"]).optional(),

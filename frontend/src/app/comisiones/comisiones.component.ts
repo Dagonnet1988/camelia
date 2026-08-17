@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import type { Liquidacion, ResumenComisionVendedor, VentaPendienteComision } from '../models/domain.models';
 import { ComisionesService } from '../services/comisiones.service';
 import { extractError } from '../shared/http-error';
+import { resumenProductosVenta } from '../shared/venta-resumen';
 
 @Component({
   selector: 'app-comisiones',
@@ -12,6 +13,8 @@ import { extractError } from '../shared/http-error';
   styleUrl: './comisiones.component.scss',
 })
 export class ComisionesComponent implements OnInit {
+  resumenProductosVenta = resumenProductosVenta;
+
   resumen = signal<ResumenComisionVendedor[]>([]);
   liquidaciones = signal<Liquidacion[]>([]);
   detalleVendedorId = signal<number | null>(null);

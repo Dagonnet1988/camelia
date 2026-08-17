@@ -2,6 +2,7 @@ import cron from "node-cron";
 import { prisma } from "../lib/prisma";
 import { obtenerConfiguracion } from "../services/configuracion.service";
 import { marcarAtrasadas } from "../services/cuotas.service";
+import { resumenProductosVenta } from "../lib/venta-resumen";
 import { enviarMensajeControlado } from "./mensajes";
 
 const DIAS_ANTICIPACION = 2;
@@ -20,7 +21,7 @@ export async function enviarRecordatoriosCuotas(): Promise<void> {
       fechaVencimiento: { lte: limite },
     },
     include: {
-      venta: { include: { producto: true, comprador: true } },
+      venta: { include: { items: { include: { producto: true } }, comprador: true } },
     },
   });
 
@@ -32,7 +33,7 @@ export async function enviarRecordatoriosCuotas(): Promise<void> {
     const fecha = cuota.fechaVencimiento.toLocaleDateString("es-CO", { timeZone: "UTC" });
     const valor = cuota.valorCuota.toNumber().toLocaleString("es-CO");
     const totalCuotas = cuota.venta.numCuotas ?? "?";
-    const nombreProducto = cuota.venta.producto.nombre;
+    const nombreProducto = resumenProductosVenta(cuota.venta.items);
 
     const texto = vencida
       ? `Hola ${comprador.nombre}, tu cuota ${cuota.numeroCuota}/${totalCuotas} de ${nombreProducto} por $${valor} esta atrasada (vencio el ${fecha}). Por favor ponte al dia cuando puedas.`

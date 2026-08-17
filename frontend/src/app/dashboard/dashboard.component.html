@@ -247,7 +247,7 @@
           @for (c of cartera()?.proximosVencimientos; track c.id) {
             <tr>
               <td>{{ c.venta.comprador?.nombre ?? '—' }}</td>
-              <td>{{ c.venta.codigoProducto }}</td>
+              <td>{{ resumenProductosVenta(c.venta.items) }}</td>
               <td class="num">{{ c.numeroCuota }}</td>
               <td class="num">{{ formatMoneda(c.valorCuota) }}</td>
               <td>{{ formatFecha(c.fechaVencimiento) }}</td>

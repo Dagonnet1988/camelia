@@ -8,16 +8,20 @@ export interface RangoFechas {
 }
 
 // 1. Top productos: por unidades vendidas y por ingresos (pueden diferir).
+// Ingresos = suma de valor_unitario x cantidad por linea - a diferencia de antes (una venta =
+// un producto), ya no incluye el recargo por cuotas, que es de la venta completa, no de un
+// producto puntual - mas correcto, aunque el numero ya no coincide con valor_total_venta.
 export async function topProductos(rango: RangoFechas, limit: number) {
   const filas = await prisma.$queryRaw<
     { codigo: string; nombre: string; unidadesVendidas: number; ingresos: string }[]
   >`
     SELECT p.codigo,
            p.nombre,
-           SUM(v.cantidad)::int AS "unidadesVendidas",
-           SUM(v.valor_total_venta)::numeric(14,2)::text AS "ingresos"
-    FROM ventas v
-    JOIN productos p ON p.codigo = v.codigo_producto
+           SUM(vi.cantidad)::int AS "unidadesVendidas",
+           SUM(vi.valor_unitario * vi.cantidad)::numeric(14,2)::text AS "ingresos"
+    FROM venta_items vi
+    JOIN ventas v ON v.id = vi.venta_id
+    JOIN productos p ON p.codigo = vi.codigo_producto
     WHERE v.fecha_venta >= COALESCE(${rango.desde ?? null}, '-infinity'::timestamp)
       AND v.fecha_venta <= COALESCE(${rango.hasta ?? null}, 'infinity'::timestamp)
     GROUP BY p.codigo, p.nombre
@@ -71,17 +75,27 @@ export async function rotacionInventario(dias: number) {
   const desde = new Date();
   desde.setDate(desde.getDate() - dias);
 
+  // Subquery previa (en vez de un LEFT JOIN directo venta_items->ventas con el filtro de fecha
+  // en el ON) porque con LEFT JOIN + filtro en el ON, una linea cuya venta NO cae en el rango
+  // igual aparece con vi.cantidad no-nulo y v NULL - se sumaria cantidad de ventas viejas. Acá
+  // se agrega solo lo que ya paso el filtro de fecha, y LUEGO se hace LEFT JOIN a productos
+  // para que los que no vendieron nada reciente sigan apareciendo con 0.
   const porProducto = await prisma.$queryRaw<
     { codigo: string; nombre: string; categoria: string; unidadesVendidas: number; rotacionDiaria: string }[]
   >`
     SELECT p.codigo,
            p.nombre,
            p.categoria::text AS categoria,
-           COALESCE(SUM(v.cantidad), 0)::int AS "unidadesVendidas",
-           (COALESCE(SUM(v.cantidad), 0)::numeric / ${dias})::numeric(10,4)::text AS "rotacionDiaria"
+           COALESCE(vent.cantidad, 0)::int AS "unidadesVendidas",
+           (COALESCE(vent.cantidad, 0)::numeric / ${dias})::numeric(10,4)::text AS "rotacionDiaria"
     FROM productos p
-    LEFT JOIN ventas v ON v.codigo_producto = p.codigo AND v.fecha_venta >= ${desde}
-    GROUP BY p.codigo, p.nombre, p.categoria
+    LEFT JOIN (
+      SELECT vi.codigo_producto AS codigo, SUM(vi.cantidad)::int AS cantidad
+      FROM venta_items vi
+      JOIN ventas v ON v.id = vi.venta_id
+      WHERE v.fecha_venta >= ${desde}
+      GROUP BY vi.codigo_producto
+    ) vent ON vent.codigo = p.codigo
     ORDER BY "rotacionDiaria" DESC
   `;
 
@@ -89,10 +103,16 @@ export async function rotacionInventario(dias: number) {
     { categoria: string; unidadesVendidas: number; rotacionDiaria: string }[]
   >`
     SELECT p.categoria::text AS categoria,
-           COALESCE(SUM(v.cantidad), 0)::int AS "unidadesVendidas",
-           (COALESCE(SUM(v.cantidad), 0)::numeric / ${dias})::numeric(10,4)::text AS "rotacionDiaria"
+           COALESCE(SUM(vent.cantidad), 0)::int AS "unidadesVendidas",
+           (COALESCE(SUM(vent.cantidad), 0)::numeric / ${dias})::numeric(10,4)::text AS "rotacionDiaria"
     FROM productos p
-    LEFT JOIN ventas v ON v.codigo_producto = p.codigo AND v.fecha_venta >= ${desde}
+    LEFT JOIN (
+      SELECT vi.codigo_producto AS codigo, SUM(vi.cantidad)::int AS cantidad
+      FROM venta_items vi
+      JOIN ventas v ON v.id = vi.venta_id
+      WHERE v.fecha_venta >= ${desde}
+      GROUP BY vi.codigo_producto
+    ) vent ON vent.codigo = p.codigo
     GROUP BY p.categoria
     ORDER BY "rotacionDiaria" DESC
   `;
@@ -121,9 +141,9 @@ export async function gananciaAcumulada(periodo: "semana" | "mes") {
 // 5. Analisis ABC: clasificar productos en A/B/C segun % de ganancia que aportan.
 export async function analisisAbc() {
   const filas = await prisma.$queryRaw<{ codigo: string; nombre: string; ganancia: string }[]>`
-    SELECT p.codigo, p.nombre, SUM(v.ganancia)::numeric(14,2)::text AS ganancia
-    FROM ventas v
-    JOIN productos p ON p.codigo = v.codigo_producto
+    SELECT p.codigo, p.nombre, SUM(vi.ganancia)::numeric(14,2)::text AS ganancia
+    FROM venta_items vi
+    JOIN productos p ON p.codigo = vi.codigo_producto
     GROUP BY p.codigo, p.nombre
     ORDER BY ganancia DESC
   `;
@@ -239,7 +259,7 @@ export async function carteraCuotas() {
 
   const proximosVencimientos = await prisma.cuota.findMany({
     where: { estado: "pendiente", fechaVencimiento: { lte: en30Dias } },
-    include: { venta: { include: { comprador: true } } },
+    include: { venta: { include: { comprador: true, items: { include: { producto: true } } } } },
     orderBy: { fechaVencimiento: "asc" },
   });
 
@@ -256,7 +276,8 @@ export async function stockMuerto(dias: number) {
   >`
     SELECT p.codigo, p.nombre, p.stock_actual AS "stockActual", MAX(v.fecha_venta) AS "ultimaVenta"
     FROM productos p
-    LEFT JOIN ventas v ON v.codigo_producto = p.codigo
+    LEFT JOIN venta_items vi ON vi.codigo_producto = p.codigo
+    LEFT JOIN ventas v ON v.id = vi.venta_id
     WHERE p.stock_actual > 0
     GROUP BY p.codigo, p.nombre, p.stock_actual
     HAVING MAX(v.fecha_venta) IS NULL OR MAX(v.fecha_venta) < ${desde}

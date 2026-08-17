@@ -6,6 +6,8 @@ import type {
   Comprador,
   CuotaConVenta,
   FrecuenciaCuotas,
+  LineaVentaEdicionInput,
+  LineaVentaInput,
   MedioPago,
   Producto,
   Vendedor,
@@ -19,12 +21,18 @@ import { ProductosService } from '../services/productos.service';
 import { VentasService } from '../services/ventas.service';
 import { extractError } from '../shared/http-error';
 import { ProductoSelectorComponent } from '../shared/producto-selector/producto-selector.component';
+import { resumenProductosVenta } from '../shared/venta-resumen';
+
+interface LineaVentaForm {
+  id?: number; // presente = linea existente (edicion); ausente = linea nueva
+  codigoProducto: string;
+  cantidad: number | null;
+  valorUnitario: number | null;
+}
 
 interface VentaForm {
-  codigoProducto: string;
+  lineas: LineaVentaForm[];
   compradorCelular: string;
-  cantidad: number | null;
-  valorContado: number | null;
   medioPago: MedioPago;
   numCuotas: number;
   frecuenciaCuotas: FrecuenciaCuotas;
@@ -38,9 +46,8 @@ interface CompradorNuevoForm {
 }
 
 interface EdicionVentaForm {
+  lineas: LineaVentaForm[];
   compradorCelular: string;
-  cantidad: number | null;
-  valorContado: number | null;
   medioPago: MedioPago;
   numCuotas: number;
   frecuenciaCuotas: FrecuenciaCuotas;
@@ -49,17 +56,21 @@ interface EdicionVentaForm {
   vendedorId: number | null;
 }
 
-const FORM_VACIO: VentaForm = {
-  codigoProducto: '',
-  compradorCelular: '',
-  cantidad: null,
-  valorContado: null,
-  medioPago: 'contado',
-  numCuotas: 1,
-  frecuenciaCuotas: 'mensual',
-  canal: 'whatsapp',
-  vendedorId: null,
-};
+function lineaVacia(): LineaVentaForm {
+  return { codigoProducto: '', cantidad: null, valorUnitario: null };
+}
+
+function formVacio(): VentaForm {
+  return {
+    lineas: [lineaVacia()],
+    compradorCelular: '',
+    medioPago: 'contado',
+    numCuotas: 1,
+    frecuenciaCuotas: 'mensual',
+    canal: 'whatsapp',
+    vendedorId: null,
+  };
+}
 
 const COMPRADOR_NUEVO_VACIO: CompradorNuevoForm = {
   celular: '',
@@ -93,9 +104,8 @@ export class VentasComponent implements OnInit {
   editandoVentaId = signal<number | null>(null);
   guardandoEdicion = signal(false);
   formEdicion: EdicionVentaForm = {
+    lineas: [lineaVacia()],
     compradorCelular: '',
-    cantidad: null,
-    valorContado: null,
     medioPago: 'contado',
     numCuotas: 1,
     frecuenciaCuotas: 'mensual',
@@ -104,8 +114,10 @@ export class VentasComponent implements OnInit {
     vendedorId: null,
   };
 
-  form: VentaForm = { ...FORM_VACIO };
+  form: VentaForm = formVacio();
   compradorNuevo: CompradorNuevoForm = { ...COMPRADOR_NUEVO_VACIO };
+
+  resumenProductosVenta = resumenProductosVenta;
 
   constructor(
     private ventasService: VentasService,
@@ -153,13 +165,13 @@ export class VentasComponent implements OnInit {
     });
   }
 
-  nombreProducto(codigo: string): string {
-    return this.productos().find((p) => p.codigo === codigo)?.nombre ?? codigo;
-  }
-
   nombreComprador(celular: string | null): string {
     if (!celular) return 'Anonimo';
     return this.compradores().find((c) => c.celular === celular)?.nombre ?? celular;
+  }
+
+  cantidadTotal(v: Venta): number {
+    return v.items.reduce((acc, i) => acc + i.cantidad, 0);
   }
 
   toggleCompradorNuevo(valor: boolean): void {
@@ -168,29 +180,41 @@ export class VentasComponent implements OnInit {
     this.compradorNuevo = { ...COMPRADOR_NUEVO_VACIO };
   }
 
-  recalcularValorSugerido(): void {
-    const producto = this.productos().find((p) => p.codigo === this.form.codigoProducto);
-    if (!producto || !this.form.cantidad) return;
-    this.form.valorContado = Number(producto.valorVenta) * this.form.cantidad;
+  // Al elegir (o cambiar) el producto de una linea, sugiere su precio de catalogo - queda
+  // editable despues por si aplica un descuento puntual a esa linea.
+  actualizarPrecioSugerido(linea: LineaVentaForm): void {
+    const producto = this.productos().find((p) => p.codigo === linea.codigoProducto);
+    if (producto) linea.valorUnitario = Number(producto.valorVenta);
   }
 
-  valorCatalogo(): string | null {
-    const producto = this.productos().find((p) => p.codigo === this.form.codigoProducto);
-    if (!producto || !this.form.cantidad) return null;
-    return String(Number(producto.valorVenta) * this.form.cantidad);
+  totalLineas(lineas: LineaVentaForm[]): number {
+    return lineas.reduce((acc, l) => acc + (Number(l.valorUnitario ?? 0) * (l.cantidad ?? 0)), 0);
+  }
+
+  agregarLinea(lineas: LineaVentaForm[]): void {
+    lineas.push(lineaVacia());
+  }
+
+  quitarLinea(lineas: LineaVentaForm[], index: number): void {
+    if (lineas.length === 1) return;
+    lineas.splice(index, 1);
   }
 
   registrar(): void {
     this.error.set(null);
     this.exito.set(null);
 
-    if (!this.form.codigoProducto || !this.form.cantidad) {
-      this.error.set('Producto y cantidad son obligatorios');
-      return;
-    }
-    if (this.form.valorContado === null || this.form.valorContado < 0) {
-      this.error.set('El valor a cobrar es obligatorio');
-      return;
+    const items: LineaVentaInput[] = [];
+    for (const [i, l] of this.form.lineas.entries()) {
+      if (!l.codigoProducto || !l.cantidad) {
+        this.error.set(`Linea ${i + 1}: producto y cantidad son obligatorios`);
+        return;
+      }
+      items.push({
+        codigoProducto: l.codigoProducto,
+        cantidad: l.cantidad,
+        valorUnitario: l.valorUnitario ?? undefined,
+      });
     }
     if (this.form.medioPago === 'cuotas' && !this.form.numCuotas) {
       this.error.set('num_cuotas es obligatorio para ventas a cuotas');
@@ -204,11 +228,9 @@ export class VentasComponent implements OnInit {
     this.guardando.set(true);
     this.ventasService
       .registrar({
-        codigoProducto: this.form.codigoProducto,
+        items,
         compradorCelular: this.esCompradorNuevo() ? this.compradorNuevo.celular : this.form.compradorCelular || undefined,
         compradorNuevo: this.esCompradorNuevo() ? { nombre: this.compradorNuevo.nombre } : undefined,
-        cantidad: this.form.cantidad,
-        valorContado: this.form.valorContado,
         medioPago: this.form.medioPago,
         numCuotas: this.form.medioPago === 'cuotas' ? this.form.numCuotas : undefined,
         frecuenciaCuotas: this.form.medioPago === 'cuotas' ? this.form.frecuenciaCuotas : undefined,
@@ -224,7 +246,7 @@ export class VentasComponent implements OnInit {
           );
           this.guardando.set(false);
           const vendedorPrevio = this.form.vendedorId;
-          this.form = { ...FORM_VACIO, vendedorId: vendedorPrevio };
+          this.form = { ...formVacio(), vendedorId: vendedorPrevio };
           this.esCompradorNuevo.set(false);
           this.compradorNuevo = { ...COMPRADOR_NUEVO_VACIO };
           this.cargarVentas();
@@ -279,7 +301,7 @@ export class VentasComponent implements OnInit {
   }
 
   eliminarVenta(v: Venta): void {
-    if (!confirm(`¿Eliminar la venta #${v.id} (${this.nombreProducto(v.codigoProducto)})? Esto restaura el stock y no se puede deshacer.`)) {
+    if (!confirm(`¿Eliminar la venta #${v.id} (${resumenProductosVenta(v.items)})? Esto restaura el stock y no se puede deshacer.`)) {
       return;
     }
     this.ventasService.eliminar(v.id).subscribe({
@@ -303,9 +325,13 @@ export class VentasComponent implements OnInit {
   editarVenta(v: Venta): void {
     this.editandoVentaId.set(v.id);
     this.formEdicion = {
+      lineas: v.items.map((item) => ({
+        id: item.id,
+        codigoProducto: item.codigoProducto,
+        cantidad: item.cantidad,
+        valorUnitario: Number(item.valorUnitario),
+      })),
       compradorCelular: v.compradorCelular ?? '',
-      cantidad: v.cantidad,
-      valorContado: Number(v.valorContado),
       medioPago: v.medioPago,
       numCuotas: v.numCuotas ?? 1,
       frecuenciaCuotas: v.frecuenciaCuotas ?? 'mensual',
@@ -327,9 +353,13 @@ export class VentasComponent implements OnInit {
     this.error.set(null);
     this.exito.set(null);
 
-    if (!this.formEdicion.cantidad || this.formEdicion.valorContado === null || this.formEdicion.valorContado < 0) {
-      this.error.set('Cantidad y valor a cobrar son obligatorios');
-      return;
+    const items: LineaVentaEdicionInput[] = [];
+    for (const [i, l] of this.formEdicion.lineas.entries()) {
+      if (!l.codigoProducto || !l.cantidad || l.valorUnitario === null) {
+        this.error.set(`Linea ${i + 1}: producto, cantidad y valor son obligatorios`);
+        return;
+      }
+      items.push({ id: l.id, codigoProducto: l.codigoProducto, cantidad: l.cantidad, valorUnitario: l.valorUnitario });
     }
     if (this.formEdicion.medioPago === 'cuotas' && (!this.formEdicion.numCuotas || this.formEdicion.recargoCuotas === null)) {
       this.error.set('num_cuotas y el recargo son obligatorios para ventas a cuotas');
@@ -339,9 +369,8 @@ export class VentasComponent implements OnInit {
     this.guardandoEdicion.set(true);
     this.ventasService
       .actualizar(id, {
+        items,
         compradorCelular: this.formEdicion.compradorCelular || undefined,
-        cantidad: this.formEdicion.cantidad,
-        valorContado: this.formEdicion.valorContado,
         medioPago: this.formEdicion.medioPago,
         numCuotas: this.formEdicion.medioPago === 'cuotas' ? this.formEdicion.numCuotas : undefined,
         frecuenciaCuotas: this.formEdicion.medioPago === 'cuotas' ? this.formEdicion.frecuenciaCuotas : undefined,

@@ -46,9 +46,9 @@ model Producto {
   fechaIngreso  DateTime @default(now()) @map("fecha_ingreso")
   proveedor     String?
 
-  compras CompraInventario[]
-  ventas  Venta[]
-  fotos   FotoProducto[]
+  compras    CompraInventario[]
+  ventaItems VentaItem[]
+  fotos      FotoProducto[]
 
   @@map("productos")
 }
@@ -89,33 +89,45 @@ model Comprador {
 }
 
 model Venta {
-  id                     Int               @id @default(autoincrement())
-  codigoProducto         String            @map("codigo_producto")
-  compradorCelular       String?           @map("comprador_celular")
-  cantidad               Int
-  valorContado           Decimal           @map("valor_contado") @db.Decimal(12, 2)
-  medioPago              MedioPago         @map("medio_pago")
-  numCuotas              Int?              @map("num_cuotas")
-  frecuenciaCuotas       FrecuenciaCuotas? @map("frecuencia_cuotas")
-  recargoCuotas          Decimal?          @map("recargo_cuotas") @db.Decimal(12, 2)
-  valorTotalVenta        Decimal           @map("valor_total_venta") @db.Decimal(12, 2)
-  costoPromedioAlMomento Decimal           @map("costo_promedio_al_momento") @db.Decimal(12, 2)
-  ganancia               Decimal           @db.Decimal(12, 2)
-  canal                  Canal
-  fechaVenta             DateTime          @default(now()) @map("fecha_venta")
-  vendedorId             Int?              @map("vendedor_id")
-  comisionPorcentaje     Decimal           @default(0) @map("comision_porcentaje") @db.Decimal(5, 2)
-  comision               Decimal           @default(0) @db.Decimal(12, 2)
-  comisionEstado         EstadoComision    @default(pendiente) @map("comision_estado")
-  liquidacionId          Int?              @map("liquidacion_id")
+  id                 Int               @id @default(autoincrement())
+  compradorCelular   String?           @map("comprador_celular")
+  valorContado       Decimal           @map("valor_contado") @db.Decimal(12, 2)
+  medioPago          MedioPago         @map("medio_pago")
+  numCuotas          Int?              @map("num_cuotas")
+  frecuenciaCuotas   FrecuenciaCuotas? @map("frecuencia_cuotas")
+  recargoCuotas      Decimal?          @map("recargo_cuotas") @db.Decimal(12, 2)
+  valorTotalVenta    Decimal           @map("valor_total_venta") @db.Decimal(12, 2)
+  ganancia           Decimal           @db.Decimal(12, 2)
+  canal              Canal
+  fechaVenta         DateTime          @default(now()) @map("fecha_venta")
+  vendedorId         Int?              @map("vendedor_id")
+  comisionPorcentaje Decimal           @default(0) @map("comision_porcentaje") @db.Decimal(5, 2)
+  comision           Decimal           @default(0) @db.Decimal(12, 2)
+  comisionEstado     EstadoComision    @default(pendiente) @map("comision_estado")
+  liquidacionId      Int?              @map("liquidacion_id")
 
-  producto    Producto     @relation(fields: [codigoProducto], references: [codigo])
+  items       VentaItem[]
   comprador   Comprador?   @relation(fields: [compradorCelular], references: [celular])
   cuotas      Cuota[]
   vendedor    Usuario?     @relation("VentasVendedor", fields: [vendedorId], references: [id])
   liquidacion Liquidacion? @relation(fields: [liquidacionId], references: [id])
 
   @@map("ventas")
+}
+
+model VentaItem {
+  id                     Int     @id @default(autoincrement())
+  ventaId                Int     @map("venta_id")
+  codigoProducto         String  @map("codigo_producto")
+  cantidad               Int
+  valorUnitario          Decimal @map("valor_unitario") @db.Decimal(12, 2)
+  costoUnitarioAlMomento Decimal @map("costo_unitario_al_momento") @db.Decimal(12, 2)
+  ganancia               Decimal @db.Decimal(12, 2)
+
+  venta    Venta    @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  producto Producto @relation(fields: [codigoProducto], references: [codigo])
+
+  @@map("venta_items")
 }
 
 model Liquidacion {

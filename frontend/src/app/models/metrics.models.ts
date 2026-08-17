@@ -81,7 +81,7 @@ export interface ProximoVencimiento {
   fechaVencimiento: string;
   estado: 'pendiente' | 'pagada' | 'atrasada';
   venta: {
-    codigoProducto: string;
+    items: { producto: { nombre: string } }[];
     comprador: { celular: string; nombre: string } | null;
   };
 }

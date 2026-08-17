@@ -117,18 +117,26 @@ export interface CuotaConVenta extends Cuota {
 
 export type EstadoComision = 'pendiente' | 'liquidada';
 
-export interface Venta {
+export interface VentaItem {
   id: number;
   codigoProducto: string;
-  compradorCelular: string | null;
   cantidad: number;
+  valorUnitario: string;
+  costoUnitarioAlMomento: string;
+  ganancia: string;
+  producto: Producto;
+}
+
+export interface Venta {
+  id: number;
+  items: VentaItem[];
+  compradorCelular: string | null;
   valorContado: string;
   medioPago: MedioPago;
   numCuotas: number | null;
   frecuenciaCuotas: FrecuenciaCuotas | null;
   recargoCuotas: string | null;
   valorTotalVenta: string;
-  costoPromedioAlMomento: string;
   ganancia: string;
   canal: Canal;
   fechaVenta: string;
@@ -154,9 +162,7 @@ export interface ResumenComisionVendedor {
   totalComision: string;
 }
 
-export interface VentaPendienteComision extends Venta {
-  producto: { nombre: string };
-}
+export type VentaPendienteComision = Venta;
 
 export interface Liquidacion {
   id: number;
@@ -173,12 +179,16 @@ export interface CompradorNuevoInput {
   nombre: string;
 }
 
-export interface RegistrarVentaInput {
+export interface LineaVentaInput {
   codigoProducto: string;
+  cantidad: number;
+  valorUnitario?: number;
+}
+
+export interface RegistrarVentaInput {
+  items: LineaVentaInput[];
   compradorCelular?: string;
   compradorNuevo?: CompradorNuevoInput;
-  cantidad: number;
-  valorContado?: number;
   medioPago: MedioPago;
   numCuotas?: number;
   frecuenciaCuotas?: FrecuenciaCuotas;
@@ -186,11 +196,17 @@ export interface RegistrarVentaInput {
   vendedorId?: number;
 }
 
+export interface LineaVentaEdicionInput {
+  id?: number; // presente = linea existente que se ajusta; ausente = linea nueva
+  codigoProducto: string;
+  cantidad: number;
+  valorUnitario: number;
+}
+
 export interface ActualizarVentaInput {
+  items: LineaVentaEdicionInput[];
   compradorCelular?: string;
   compradorNuevo?: CompradorNuevoInput;
-  cantidad: number;
-  valorContado: number;
   medioPago: MedioPago;
   numCuotas?: number;
   frecuenciaCuotas?: FrecuenciaCuotas;

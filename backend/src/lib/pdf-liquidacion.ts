@@ -3,7 +3,11 @@ import type { Response } from "express";
 import { resumenProductosVenta } from "./venta-resumen";
 
 const MONEDA = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
-const FECHA = new Intl.DateTimeFormat("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+// timeZone: "UTC" es obligatorio aca - fechaVenta/fechaLiquidacion ya vienen desplazadas por
+// comoBogota() (sus getters UTC representan la hora de Bogota); formatear sin forzar UTC usa la
+// zona horaria local del proceso Node y, si esa zona ya es America/Bogota, le resta 5h otra vez
+// y puede cruzar la medianoche al dia anterior (mismo bug encontrado en pdf-comprobante.ts).
+const FECHA = new Intl.DateTimeFormat("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 
 interface VentaLiquidacion {
   id: number;

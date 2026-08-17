@@ -94,6 +94,40 @@ export async function obtenerVenta(id: number) {
   return venta;
 }
 
+// Para el comprobante en PDF que se le envia al comprador - solo trae/expone lo que es seguro
+// mostrarle a un cliente (nunca costo_unitario_al_momento, ganancia, comision ni datos del
+// vendedor, igual que el catalogo publico nunca expone costo_promedio).
+export async function obtenerVentaParaComprobante(id: number) {
+  const venta = await obtenerVenta(id);
+  const comprador = venta.compradorCelular
+    ? await prisma.comprador.findUnique({ where: { celular: venta.compradorCelular } })
+    : null;
+
+  return {
+    id: venta.id,
+    fechaVenta: venta.fechaVenta,
+    medioPago: venta.medioPago,
+    frecuenciaCuotas: venta.frecuenciaCuotas,
+    valorContado: venta.valorContado,
+    recargoCuotas: venta.recargoCuotas,
+    valorTotalVenta: venta.valorTotalVenta,
+    items: venta.items.map((item) => ({
+      codigoProducto: item.codigoProducto,
+      nombreProducto: item.producto.nombre,
+      cantidad: item.cantidad,
+      valorUnitario: item.valorUnitario,
+    })),
+    cuotas: venta.cuotas.map((c) => ({
+      numeroCuota: c.numeroCuota,
+      valorCuota: c.valorCuota,
+      fechaVencimiento: c.fechaVencimiento,
+      fechaPago: c.fechaPago,
+      estado: c.estado,
+    })),
+    comprador: comprador ? { nombre: comprador.nombre, celular: comprador.celular } : null,
+  };
+}
+
 function validarCamposCuotas(
   medioPago: MedioPago,
   numCuotas: number | undefined,

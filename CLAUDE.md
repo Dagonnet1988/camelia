@@ -1025,6 +1025,55 @@ previa de cuánto queda cada cuota (mismo redondeo a la centena que ya usa `gene
   editar la fecha de otra como `manager` funciona; los endpoints de WhatsApp/Comisiones
   reutilizados responden igual desde la nueva página. Typecheck limpio en backend y frontend.
 
+### Comprobante de venta en PDF para el cliente — COMPLETO (2026-08-17)
+
+Pedido explícito del usuario: un documento tipo factura (sin llamarlo "factura") que el
+vendedor pueda generar y enviarle al comprador — con los items (código de producto incluido,
+para que a futuro el cliente pueda pedir de nuevo por código), el valor total, y si la venta es
+a cuotas, el valor y estado de cada una. Decisión explícita: primera versión **on-demand** — un
+botón en Ventas que el vendedor abre cuando quiere, sin envío automático por WhatsApp (eso queda
+para una eventual segunda vuelta).
+
+- **Backend:** `backend/src/lib/pdf-comprobante.ts` (nuevo, mismo patrón que
+  `pdf-liquidacion.ts` con `pdfkit`) — `generarPdfComprobanteVenta()` recibe un objeto ya
+  reducido a **solo lo seguro de mostrarle a un cliente**: código/nombre/cantidad/valor unitario
+  de cada línea, subtotal, recargo por cuotas (si aplica), total, y — si es a cuotas — cada
+  cuota con su valor/fecha de vencimiento/estado/fecha de pago. Nunca incluye
+  `costoUnitarioAlMomento`, `ganancia`, `comision` ni datos del vendedor (mismo criterio que ya
+  usa el catálogo público para no exponer `costoPromedio`). `ventas.service.ts` expone
+  `obtenerVentaParaComprobante(id)` que arma ese objeto reducido (reutiliza `obtenerVenta()` +
+  busca el comprador por separado, ya que `Venta` no tiene relación directa a `Comprador`).
+  Ruta nueva `GET /api/ventas/:id/comprobante` (sin restricción de rol adicional, mismo nivel que
+  `GET /api/ventas/:id` — los 3 roles pueden generar el comprobante de cualquier venta que ya
+  puedan ver), `Content-Disposition: inline` para que abra en una pestaña nueva como preview.
+- **Frontend:** `ventasService.urlComprobante(id)` + botón "Comprobante" (columna nueva en la
+  tabla de Ventas, visible para los 3 roles — a diferencia de Editar/Eliminar/Comisión, que
+  siguen exclusivos de manager/admin) que hace `window.open(url, '_blank')`; el vendedor decide
+  si descargarlo/enviarlo y cuándo, sin ningún envío automático.
+- **Bug de timezone encontrado y corregido en el camino (afectaba también el PDF de liquidación
+  de comisiones, ya en producción):** `pdf-comprobante.ts` y `pdf-liquidacion.ts` formateaban
+  fechas con `new Intl.DateTimeFormat("es-CO", {...})` sin fijar `timeZone`. Las fechas de venta/
+  cuota/liquidación ya vienen desplazadas por `comoBogota()` (o, en el caso de
+  `fecha_liquidacion`, por el default `CURRENT_TIMESTAMP` de Postgres con la sesión en
+  `America/Bogota` — mismo efecto: sus getters **UTC** ya representan la hora de Bogotá, ver el
+  bug de timezone documentado arriba). Formatear sin forzar `timeZone: "UTC"` usa la zona
+  horaria **local del proceso Node**, y si esa zona ya es `America/Bogota` (como en esta
+  máquina de desarrollo), le resta 5h una segunda vez — para una fecha de cuota anclada a
+  medianoche (`00:00:00.000Z`), eso cruza la medianoche y muestra el día anterior. Fix: agregar
+  `timeZone: "UTC"` al formateador en ambos archivos (mismo criterio que ya usa el frontend con
+  `date: 'dd/MM/yyyy':'UTC'` en los `DatePipe`). Confirmado con `pypdf` extrayendo el texto real
+  del PDF antes/después del fix: una cuota con `fecha_vencimiento = 2026-09-01T00:00:00.000Z`
+  mostraba "31 de ago" antes del fix y "01 de sept" después, coincidiendo con el valor crudo de
+  la base de datos.
+- Probado end-to-end vía API con `pypdf` (extracción de texto real del PDF, no solo que
+  devolviera 200): venta a cuotas de 1 línea (código, nombre, cantidad, valor unit., subtotal,
+  recargo, total, y las 2 cuotas con su vence/estado/fecha de pago correctos); venta de contado
+  con comprador real (nombre correcto, sin sección de recargo ni cuotas); venta multi-línea de 3
+  productos (los 3 códigos/nombres/subtotales correctos, total cuadrando exacto con recargo
+  incluido, y las 3 cuotas redondeadas a la centena sumando exacto al total). Confirmado 200
+  para los 3 roles, 401 sin sesión, 404 con una venta inexistente. Typecheck limpio en backend y
+  frontend.
+
 ### Identidad de marca — COMPLETO (2026-08-02)
 
 Assets de marca ya existentes en `frontend/public/brand/files/` (logo maestro, monograma,

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAdmin, requireManagerOrAdmin } from "../lib/auth-middleware";
 import { asyncHandler } from "../lib/http";
+import { generarPdfComprobanteVenta } from "../lib/pdf-comprobante";
 import { validateBody } from "../lib/validate";
 import * as ventasService from "../services/ventas.service";
 
@@ -95,6 +96,14 @@ ventasRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
     res.json(await ventasService.obtenerVenta(Number(req.params["id"])));
+  }),
+);
+
+ventasRouter.get(
+  "/:id/comprobante",
+  asyncHandler(async (req, res) => {
+    const venta = await ventasService.obtenerVentaParaComprobante(Number(req.params["id"]));
+    generarPdfComprobanteVenta(venta, res);
   }),
 );
 

@@ -251,6 +251,10 @@ export class VentasComponent implements OnInit {
       });
   }
 
+  verComprobante(v: Venta): void {
+    window.open(this.ventasService.urlComprobante(v.id), '_blank');
+  }
+
   eliminarVenta(v: Venta): void {
     if (!confirm(`¿Eliminar la venta #${v.id} (${resumenProductosVenta(v.items)})? Esto restaura el stock y no se puede deshacer.`)) {
       return;

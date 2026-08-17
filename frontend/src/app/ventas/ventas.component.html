@@ -296,6 +296,7 @@
           <th>Canal</th>
           <th>Fecha</th>
           <th>Vendedor</th>
+          <th></th>
           @if (auth.esManagerOAdmin()) {
             <th class="num">Comisión</th>
             <th></th>
@@ -317,6 +318,9 @@
             <td>{{ v.canal }}</td>
             <td>{{ v.fechaVenta | date: 'dd/MM/yyyy':'UTC' }}</td>
             <td>{{ v.vendedor ? v.vendedor.nombre + ' ' + v.vendedor.apellido : '—' }}</td>
+            <td>
+              <button class="btn btn-secondary" type="button" (click)="verComprobante(v)">Comprobante</button>
+            </td>
             @if (auth.esManagerOAdmin()) {
               <td class="num">
                 {{ v.comision }}

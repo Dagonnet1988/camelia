@@ -24,4 +24,8 @@ export class VentasService {
   eliminar(id: number) {
     return this.http.delete<void>(`${BASE}/${id}`);
   }
+
+  urlComprobante(id: number): string {
+    return `${BASE}/${id}/comprobante`;
+  }
 }

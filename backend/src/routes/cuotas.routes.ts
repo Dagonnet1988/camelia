@@ -1,6 +1,12 @@
 import { Router } from "express";
+import { z } from "zod";
 import { asyncHandler } from "../lib/http";
+import { validateBody } from "../lib/validate";
 import * as cuotasService from "../services/cuotas.service";
+
+const actualizarFechaCuotaSchema = z.object({
+  fechaVencimiento: z.coerce.date(),
+});
 
 export const cuotasRouter = Router();
 
@@ -21,5 +27,13 @@ cuotasRouter.patch(
   "/:id/pagar",
   asyncHandler(async (req, res) => {
     res.json(await cuotasService.marcarCuotaPagada(Number(req.params["id"])));
+  }),
+);
+
+cuotasRouter.patch(
+  "/:id/fecha",
+  validateBody(actualizarFechaCuotaSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await cuotasService.actualizarFechaCuota(Number(req.params["id"]), req.body.fechaVencimiento));
   }),
 );

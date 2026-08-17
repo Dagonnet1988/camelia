@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { requireManagerOrAdmin } from "../lib/auth-middleware";
+import { requireAdmin, requireManagerOrAdmin } from "../lib/auth-middleware";
 import { asyncHandler } from "../lib/http";
 import { validateBody } from "../lib/validate";
 import * as ventasService from "../services/ventas.service";
@@ -107,5 +107,14 @@ ventasRouter.put(
   asyncHandler(async (req, res) => {
     const venta = await ventasService.actualizarVenta(Number(req.params["id"]), req.body);
     res.json(venta);
+  }),
+);
+
+ventasRouter.delete(
+  "/:id",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    await ventasService.eliminarVenta(Number(req.params["id"]));
+    res.status(204).send();
   }),
 );

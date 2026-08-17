@@ -286,6 +286,30 @@ export async function actualizarVenta(id: number, input: ActualizarVentaInput) {
   });
 }
 
+// Solo admin (ver ventas.routes.ts). Mismo guard que actualizarVenta - no se puede borrar una
+// venta cuya comision ya fue liquidada, ni una con alguna cuota ya pagada (perderia el
+// historial real de cobro). Revierte el stock descontado y borra las cuotas antes de la venta
+// (no hay onDelete: Cascade en el schema) - todo en una sola transaccion.
+export async function eliminarVenta(id: number) {
+  return prisma.$transaction(async (tx) => {
+    const existente = await tx.venta.findUnique({ where: { id }, include: { cuotas: true } });
+    if (!existente) throw new ApiError(404, `Venta ${id} no existe`);
+    if (existente.comisionEstado === "liquidada") {
+      throw new ApiError(400, "No se puede eliminar una venta cuya comision ya fue liquidada");
+    }
+    if (existente.cuotas.some((c) => c.estado === "pagada")) {
+      throw new ApiError(400, "No se puede eliminar una venta que ya tiene cuotas pagadas");
+    }
+
+    await tx.cuota.deleteMany({ where: { idVenta: id } });
+    await tx.producto.update({
+      where: { codigo: existente.codigoProducto },
+      data: { stockActual: { increment: existente.cantidad } },
+    });
+    await tx.venta.delete({ where: { id } });
+  });
+}
+
 function generarCuotas(
   idVenta: number,
   valorTotalVenta: Prisma.Decimal,

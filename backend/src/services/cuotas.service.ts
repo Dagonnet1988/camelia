@@ -34,3 +34,19 @@ export async function marcarCuotaPagada(id: number) {
     data: { estado: "pagada", fechaPago: comoBogota(new Date()) },
   });
 }
+
+// Corrige la fecha de vencimiento de UNA cuota puntual, sin tocar las demas cuotas de la
+// venta (a diferencia de editar la venta, que regenera el set completo). Se resetea
+// recordatorio_enviado para que el cron de WhatsApp evalue de nuevo la nueva fecha, y el
+// estado vuelve a "pendiente" (marcarAtrasadas la reclasifica a "atrasada" si corresponde en
+// la proxima consulta).
+export async function actualizarFechaCuota(id: number, fechaVencimiento: Date) {
+  const cuota = await prisma.cuota.findUnique({ where: { id } });
+  if (!cuota) throw new ApiError(404, `Cuota ${id} no existe`);
+  if (cuota.estado === "pagada") throw new ApiError(400, `No se puede cambiar la fecha de una cuota ya pagada`);
+
+  return prisma.cuota.update({
+    where: { id },
+    data: { fechaVencimiento, estado: "pendiente", recordatorioEnviado: false },
+  });
+}

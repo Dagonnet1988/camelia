@@ -752,6 +752,55 @@ edición) y en Compra por lote, ya que tenían el mismo problema.
   bien el precio sugerido y guardó el `codigo` correcto; una compra registrada de la misma forma
   quedó contra el producto correcto en la base de datos (verificado directamente por SQL).
 
+### Auditoría del ciclo de vida de ventas/cuotas: editar fecha de cuota, eliminar venta — COMPLETO (2026-08-17)
+
+Pedido explícito del usuario: validar que el ciclo de vida de ventas a cuotas fuera correcto
+(una venta = un producto hoy, de dónde sale el recargo por cuotas, si comisión/ganancia
+incluyen ese recargo, fechas de cuotas según frecuencia) y confirmar/agregar dos capacidades
+que faltaban. Hallazgos de la auditoría (sin cambios de código, ya funcionaban así por diseño):
+recargo se toma del global al crear y es ajustable solo al editar; comisión y ganancia SÍ se
+calculan sobre `valor_total_venta` (incluye el recargo), tanto al crear como al editar; las
+fechas de cuota son `fecha_venta + (7|15|30 × N)` días exactos — "mensual" es un paso fijo de
+30 días, no "mismo día del próximo mes calendario" (a tener en cuenta, no es un bug); editar
+una venta a cuotas borra y regenera TODAS sus cuotas, pero está bloqueado si alguna ya fue
+pagada o la comisión ya se liquidó, así que nunca se pierde historial de pago.
+
+Dos capacidades confirmadas como faltantes y construidas en esta ronda:
+
+- **Editar la fecha de vencimiento de UNA cuota puntual**, sin regenerar las demás cuotas de
+  esa venta. `cuotas.service.ts` (`actualizarFechaCuota`) — bloqueado con 400 si la cuota ya
+  está pagada; al cambiar la fecha se resetea `recordatorio_enviado` a `false` (para que el
+  cron de WhatsApp reevalúe la nueva fecha) y `estado` vuelve a `pendiente`
+  (`marcarAtrasadas()` la reclasifica a `atrasada` en la próxima consulta si corresponde).
+  `PATCH /api/cuotas/:id/fecha`, sin restricción de rol adicional a nivel de API pero el botón
+  "Editar fecha" en el frontend solo se muestra a manager/admin (mismo nivel que editar la
+  venta). UI: edición inline en la fila de la tabla "Cuotas pendientes" (input de fecha +
+  Guardar/Cancelar), mismo patrón que otras ediciones inline de la app.
+- **Eliminar una venta completamente (solo admin).** `ventas.service.ts` (`eliminarVenta`) —
+  mismo guard que `actualizarVenta` (bloqueada si la comisión ya se liquidó o si alguna cuota
+  ya está pagada), y además revierte el stock (`stock_actual += cantidad`) y borra las cuotas
+  de la venta antes de borrar la venta misma (el schema no tiene `onDelete: Cascade` en esa
+  relación), todo en una sola transacción. `DELETE /api/ventas/:id` con `requireAdmin` (a
+  diferencia de editar, que es manager/admin — el usuario pidió explícitamente que el borrado
+  fuera exclusivo de admin). Botón "Eliminar" en la tabla de Ventas, con `confirm()` del
+  navegador, visible solo si `auth.esAdmin()` y la venta cumple el mismo guard (no liquidada,
+  sin cuotas pagadas) — `puedeEliminarVenta()` en el frontend espeja el guard del backend para
+  no mostrar un botón que el backend va a rechazar.
+- Probado end-to-end: editar la fecha de una cuota pendiente actualizó el campo correctamente
+  (verificado en crudo contra la API); intentar editar la fecha de una cuota ya pagada devolvió
+  400; intentar eliminar una venta con una cuota pagada devolvió 400; eliminar una venta sin
+  cuotas pagadas restauró el stock exacto (24 → 21 al vender 3 unidades → 24 de nuevo al
+  eliminar), borró sus cuotas, y un `GET` posterior a esa venta devolvió 404.
+
+**Pendiente de diseño, explícitamente fuera de esta ronda:** el usuario confirmó que quiere
+que una venta pueda tener **varias líneas de producto** (hoy `Venta` tiene `codigoProducto`/
+`cantidad` escalares, una sola línea por venta), con la aclaración de que el total, las cuotas
+y la comisión deben calcularse **sobre el total de la venta**, no por línea. Es un cambio de
+esquema grande que toca prácticamente todo `metrics.service.ts` (varias métricas hacen JOIN
+directo asumiendo `ventas.codigo_producto` escalar), `ventas.service.ts`, el formulario de
+Ventas, y probablemente el script de seed — requiere una migración de Prisma y se va a
+planear/documentar aparte antes de tocar código, dado el alcance.
+
 ### Identidad de marca — COMPLETO (2026-08-02)
 
 Assets de marca ya existentes en `frontend/public/brand/files/` (logo maestro, monograma,

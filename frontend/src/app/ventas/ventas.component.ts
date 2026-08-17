@@ -81,6 +81,9 @@ export class VentasComponent implements OnInit {
   exito = signal<string | null>(null);
   guardando = signal(false);
   pagandoCuotaId = signal<number | null>(null);
+  editandoFechaCuotaId = signal<number | null>(null);
+  guardandoFechaCuotaId = signal<number | null>(null);
+  nuevaFechaCuota = '';
 
   vendedores = signal<Vendedor[]>([]);
   filtroVendedorId: number | null = null;
@@ -250,8 +253,51 @@ export class VentasComponent implements OnInit {
     });
   }
 
+  editarFechaCuota(cuota: CuotaConVenta): void {
+    this.editandoFechaCuotaId.set(cuota.id);
+    this.nuevaFechaCuota = cuota.fechaVencimiento.slice(0, 10);
+  }
+
+  cancelarFechaCuota(): void {
+    this.editandoFechaCuotaId.set(null);
+  }
+
+  guardarFechaCuota(cuota: CuotaConVenta): void {
+    if (!this.nuevaFechaCuota) return;
+    this.guardandoFechaCuotaId.set(cuota.id);
+    this.cuotasService.actualizarFecha(cuota.id, this.nuevaFechaCuota).subscribe({
+      next: () => {
+        this.guardandoFechaCuotaId.set(null);
+        this.editandoFechaCuotaId.set(null);
+        this.cargarCuotasPendientes();
+      },
+      error: (err) => {
+        this.error.set(extractError(err));
+        this.guardandoFechaCuotaId.set(null);
+      },
+    });
+  }
+
+  eliminarVenta(v: Venta): void {
+    if (!confirm(`¿Eliminar la venta #${v.id} (${this.nombreProducto(v.codigoProducto)})? Esto restaura el stock y no se puede deshacer.`)) {
+      return;
+    }
+    this.ventasService.eliminar(v.id).subscribe({
+      next: () => {
+        this.cargarVentas();
+        this.cargarCuotasPendientes();
+        this.productosService.listar().subscribe((data) => this.productos.set(data));
+      },
+      error: (err) => this.error.set(extractError(err)),
+    });
+  }
+
   puedeEditarVenta(v: Venta): boolean {
     return this.auth.esManagerOAdmin() && v.comisionEstado !== 'liquidada' && !v.cuotas.some((c) => c.estado === 'pagada');
+  }
+
+  puedeEliminarVenta(v: Venta): boolean {
+    return this.auth.esAdmin() && v.comisionEstado !== 'liquidada' && !v.cuotas.some((c) => c.estado === 'pagada');
   }
 
   editarVenta(v: Venta): void {

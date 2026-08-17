@@ -17,4 +17,8 @@ export class CuotasService {
   pagar(id: number) {
     return this.http.patch<CuotaConVenta>(`${BASE}/${id}/pagar`, {});
   }
+
+  actualizarFecha(id: number, fechaVencimiento: string) {
+    return this.http.patch<CuotaConVenta>(`${BASE}/${id}/fecha`, { fechaVencimiento });
+  }
 }

@@ -20,4 +20,8 @@ export class VentasService {
   actualizar(id: number, input: ActualizarVentaInput) {
     return this.http.put<Venta>(`${BASE}/${id}`, input);
   }
+
+  eliminar(id: number) {
+    return this.http.delete<void>(`${BASE}/${id}`);
+  }
 }

@@ -1,0 +1,24 @@
+<div class="producto-selector">
+  <input
+    type="text"
+    [placeholder]="placeholder"
+    [ngModel]="texto"
+    (ngModelChange)="onInput($event)"
+    (focus)="onFocus()"
+    (blur)="onBlur()"
+    autocomplete="off"
+  />
+  @if (abierto) {
+    <ul class="producto-selector-resultados">
+      @if (resultados.length === 0) {
+        <li class="producto-selector-vacio">Sin resultados</li>
+      }
+      @for (p of resultados; track p.codigo) {
+        <li (mousedown)="seleccionar(p)">
+          {{ p.nombre }} <span class="producto-selector-codigo">({{ p.codigo }})</span>
+          <span class="producto-selector-stock">stock {{ p.stockActual }}</span>
+        </li>
+      }
+    </ul>
+  }
+</div>

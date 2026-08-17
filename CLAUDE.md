@@ -724,6 +724,34 @@ batch anterior:
   compra más reciente (la del lote), no el promedio ponderado — confirmando que también quedó
   bien conectado con el cambio de Ganancia de este mismo batch.
 
+### Selector de producto con filtro (Ventas, Compras, Compra por lote) — COMPLETO (2026-08-17)
+
+Pedido explícito del usuario: al registrar una venta, poder buscar el producto escribiendo
+letras del nombre o el código en vez de scrollear un `<select>` con todos los productos.
+Confirmado con el usuario aplicarlo también en Compras (registrar y reasignar en el modal de
+edición) y en Compra por lote, ya que tenían el mismo problema.
+
+- `frontend/src/app/shared/producto-selector/producto-selector.component.ts` — componente
+  reutilizable con un `<input>` de texto + lista desplegable filtrada (no usa `<datalist>`,
+  porque el valor real que necesita el formulario es el `codigo` del producto, no el texto
+  visible, y un `<datalist>` no distingue eso de forma confiable). API: `[productos]` (lista
+  completa), `[(codigo)]` (dos vías, mismo patrón que `[(ngModel)]`), `(codigoChange)` opcional
+  si el padre necesita reaccionar a la selección (ej. recalcular precio sugerido). Filtra por
+  `nombre` o `codigo` (case-insensitive, substring) mientras se escribe; al hacer click en un
+  resultado (con `(mousedown)`, no `(click)`, para que corra antes del `blur` del input) fija el
+  `codigo` y muestra `"Nombre (CODIGO)"`; si el usuario escribe algo y sale del campo sin elegir
+  un resultado de la lista, el texto se descarta y vuelve a mostrar el producto ya seleccionado
+  (o queda vacío) — el `codigo` real nunca cambia por texto libre, solo por click explícito.
+- Reemplaza el `<select>` de producto en: `ventas.component.html` (Nueva venta),
+  `compras.component.html` (Registrar compra, y el selector de reasignación de producto dentro
+  del modal "Editar compra"), y `compra-lote.component.html` (cada línea). No se tocó el
+  `<select>` de Compradores/Vendedores/Canal/etc. — el pedido era específicamente sobre el
+  volumen de productos.
+- Probado end-to-end: buscar "anillo"/"SEED-COL"/"manilla" filtra correctamente por nombre y
+  código en las 3 páginas; una venta registrada eligiendo el producto por este selector calculó
+  bien el precio sugerido y guardó el `codigo` correcto; una compra registrada de la misma forma
+  quedó contra el producto correcto en la base de datos (verificado directamente por SQL).
+
 ### Identidad de marca — COMPLETO (2026-08-02)
 
 Assets de marca ya existentes en `frontend/public/brand/files/` (logo maestro, monograma,

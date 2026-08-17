@@ -58,12 +58,7 @@
       } @else {
         <div class="field">
           <label>Producto</label>
-          <select name="codigoProducto" [(ngModel)]="form.codigoProducto" required>
-            <option value="" disabled>Selecciona…</option>
-            @for (p of productos(); track p.codigo) {
-              <option [value]="p.codigo">{{ p.nombre }} ({{ p.codigo }})</option>
-            }
-          </select>
+          <app-producto-selector [productos]="productos()" [(codigo)]="form.codigoProducto" />
         </div>
       }
       <div class="field">
@@ -164,16 +159,11 @@
         <div class="form-grid">
           <div class="field">
             <label>Producto</label>
-            <select
-              name="codigoProductoEdicion"
-              [(ngModel)]="formEdicion.codigoProducto"
-              (change)="onCambioProductoEdicion()"
-              required
-            >
-              @for (p of productos(); track p.codigo) {
-                <option [value]="p.codigo">{{ p.nombre }} ({{ p.codigo }})</option>
-              }
-            </select>
+            <app-producto-selector
+              [productos]="productos()"
+              [(codigo)]="formEdicion.codigoProducto"
+              (codigoChange)="onCambioProductoEdicion()"
+            />
           </div>
           <div class="field">
             <label>Categoria</label>

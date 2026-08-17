@@ -5,6 +5,7 @@ import type { Categoria, LineaCompraLoteInput, Producto } from '../models/domain
 import { ComprasService } from '../services/compras.service';
 import { ProductosService } from '../services/productos.service';
 import { extractError } from '../shared/http-error';
+import { ProductoSelectorComponent } from '../shared/producto-selector/producto-selector.component';
 
 interface LineaLote {
   esNuevo: boolean;
@@ -32,7 +33,7 @@ function lineaVacia(): LineaLote {
 
 @Component({
   selector: 'app-compra-lote',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, ProductoSelectorComponent],
   templateUrl: './compra-lote.component.html',
   styleUrl: './compra-lote.component.scss',
 })

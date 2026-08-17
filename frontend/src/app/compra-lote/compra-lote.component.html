@@ -74,12 +74,7 @@
           } @else {
             <div class="field">
               <label>Producto</label>
-              <select [(ngModel)]="linea.codigoProducto" [name]="'codigoProducto' + i" required>
-                <option value="" disabled>Selecciona…</option>
-                @for (p of productos(); track p.codigo) {
-                  <option [value]="p.codigo">{{ p.nombre }} ({{ p.codigo }})</option>
-                }
-              </select>
+              <app-producto-selector [productos]="productos()" [(codigo)]="linea.codigoProducto" />
             </div>
           }
           <div class="field">

@@ -18,6 +18,7 @@ import { CuotasService } from '../services/cuotas.service';
 import { ProductosService } from '../services/productos.service';
 import { VentasService } from '../services/ventas.service';
 import { extractError } from '../shared/http-error';
+import { ProductoSelectorComponent } from '../shared/producto-selector/producto-selector.component';
 
 interface VentaForm {
   codigoProducto: string;
@@ -67,7 +68,7 @@ const COMPRADOR_NUEVO_VACIO: CompradorNuevoForm = {
 
 @Component({
   selector: 'app-ventas',
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, ProductoSelectorComponent],
   templateUrl: './ventas.component.html',
   styleUrl: './ventas.component.scss',
 })

@@ -26,17 +26,11 @@
     <div class="form-grid">
       <div class="field">
         <label>Producto</label>
-        <select
-          name="codigoProducto"
-          [(ngModel)]="form.codigoProducto"
-          (ngModelChange)="recalcularValorSugerido()"
-          required
-        >
-          <option value="" disabled>Selecciona…</option>
-          @for (p of productos(); track p.codigo) {
-            <option [value]="p.codigo">{{ p.nombre }} — stock {{ p.stockActual }}</option>
-          }
-        </select>
+        <app-producto-selector
+          [productos]="productos()"
+          [(codigo)]="form.codigoProducto"
+          (codigoChange)="recalcularValorSugerido()"
+        />
       </div>
       @if (!esCompradorNuevo()) {
         <div class="field">

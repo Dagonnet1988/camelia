@@ -6,6 +6,7 @@ import type { Categoria, CompraInventario, Producto } from '../models/domain.mod
 import { ComprasService } from '../services/compras.service';
 import { ProductosService } from '../services/productos.service';
 import { extractError } from '../shared/http-error';
+import { ProductoSelectorComponent } from '../shared/producto-selector/producto-selector.component';
 
 interface CompraForm {
   codigoProducto: string;
@@ -49,7 +50,7 @@ const PRODUCTO_NUEVO_VACIO: ProductoNuevoForm = {
 
 @Component({
   selector: 'app-compras',
-  imports: [FormsModule, DatePipe, RouterLink],
+  imports: [FormsModule, DatePipe, RouterLink, ProductoSelectorComponent],
   templateUrl: './compras.component.html',
   styleUrl: './compras.component.scss',
 })

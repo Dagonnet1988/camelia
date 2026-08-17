@@ -19,6 +19,13 @@
     }
   </div>
 
+  @if (estado() === 'conectado' && numeroVinculado()) {
+    <p class="hint">
+      Numero vinculado: +{{ numeroVinculado() }} — este es el numero que usa el botón
+      "Preguntar por WhatsApp" del catálogo público.
+    </p>
+  }
+
   @if (estado() === 'esperando_qr' && qr()) {
     <div class="qr-box">
       <img [src]="qr()" alt="Codigo QR de WhatsApp" />

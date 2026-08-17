@@ -19,6 +19,7 @@ const POLL_MS = 3000;
 export class WhatsappComponent implements OnInit, OnDestroy {
   estado = signal<EstadoWhatsapp>('desconectado');
   qr = signal<string | undefined>(undefined);
+  numeroVinculado = signal<string | undefined>(undefined);
 
   numero = '';
   texto = '';
@@ -46,10 +47,12 @@ export class WhatsappComponent implements OnInit, OnDestroy {
       .subscribe((r) => {
         this.estado.set(r.estado);
         this.qr.set(r.qr);
+        this.numeroVinculado.set(r.numero);
       });
     this.whatsapp.status().subscribe((r) => {
       this.estado.set(r.estado);
       this.qr.set(r.qr);
+      this.numeroVinculado.set(r.numero);
     });
     this.cargarConfig();
     this.cargarHistorial();
@@ -75,6 +78,7 @@ export class WhatsappComponent implements OnInit, OnDestroy {
     this.whatsapp.reconectar().subscribe((r) => {
       this.estado.set(r.estado);
       this.qr.set(r.qr);
+      this.numeroVinculado.set(r.numero);
     });
   }
 
@@ -83,6 +87,7 @@ export class WhatsappComponent implements OnInit, OnDestroy {
     this.whatsapp.logout().subscribe((r) => {
       this.estado.set(r.estado);
       this.qr.set(r.qr);
+      this.numeroVinculado.set(r.numero);
     });
   }
 

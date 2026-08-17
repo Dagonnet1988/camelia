@@ -3,6 +3,7 @@ export type EstadoWhatsapp = 'desconectado' | 'conectando' | 'esperando_qr' | 'c
 export interface EstadoWhatsappResponse {
   estado: EstadoWhatsapp;
   qr?: string;
+  numero?: string;
 }
 
 export interface ConfiguracionWhatsapp {

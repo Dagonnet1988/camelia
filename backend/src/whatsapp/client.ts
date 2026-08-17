@@ -29,8 +29,18 @@ let qrDataUrl: string | undefined;
 let intentosReconexion = 0;
 let timeoutEstable: NodeJS.Timeout | undefined;
 
-export function obtenerEstado(): { estado: EstadoWhatsapp; qr: string | undefined } {
-  return { estado, qr: qrDataUrl };
+// El numero vinculado se lee directo de la sesion ya conectada (socket.user.id, formato
+// "<numero>:<dispositivo>@s.whatsapp.net") - no hace falta pedirselo al usuario ni guardarlo
+// aparte, y siempre queda sincronizado si se reconecta con otro numero.
+function numeroVinculado(): string | undefined {
+  const id = socket?.user?.id;
+  if (!id) return undefined;
+  const digitos = id.split(/[:@]/)[0];
+  return digitos && /^\d+$/.test(digitos) ? digitos : undefined;
+}
+
+export function obtenerEstado(): { estado: EstadoWhatsapp; qr: string | undefined; numero: string | undefined } {
+  return { estado, qr: qrDataUrl, numero: estado === "conectado" ? numeroVinculado() : undefined };
 }
 
 export async function iniciarWhatsapp(esReintentoAutomatico = false): Promise<void> {

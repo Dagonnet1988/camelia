@@ -17,6 +17,7 @@ export class CatalogoPublicoComponent implements OnInit {
   productos = signal<ProductoPublico[]>([]);
   cargando = signal(true);
   categoriaActiva = signal<Categoria | 'todas'>('todas');
+  numeroWhatsapp = signal<string | null>(null);
 
   // Categoria es texto libre; las categorias del filtro son las que realmente estan en uso
   // entre los productos visibles, no una lista fija.
@@ -40,10 +41,17 @@ export class CatalogoPublicoComponent implements OnInit {
       this.productos.set(data);
       this.cargando.set(false);
     });
+    this.publicoService.whatsappNumero().subscribe((r) => this.numeroWhatsapp.set(r.numero));
   }
 
   formatMoneda(valor: string): string {
     return MONEDA.format(Number(valor));
+  }
+
+  linkWhatsapp(p: ProductoPublico): string {
+    const numero = this.numeroWhatsapp();
+    const mensaje = `Hola! Quisiera preguntar por: ${p.nombre} (${p.codigo}) — ${this.formatMoneda(p.valorVenta)}`;
+    return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
   }
 
   indiceActivo(codigo: string): number {

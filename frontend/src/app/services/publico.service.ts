@@ -11,4 +11,8 @@ export class PublicoService {
   catalogo() {
     return this.http.get<ProductoPublico[]>(`${BASE}/catalogo`);
   }
+
+  whatsappNumero() {
+    return this.http.get<{ numero: string | null }>(`${BASE}/whatsapp-numero`);
+  }
 }

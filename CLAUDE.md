@@ -48,37 +48,59 @@ Al insertar una compra:
 - nombre
 - fecha_primera_compra (opcional, se puede derivar de ventas)
 
-### ventas
+### ventas (multi-línea desde 2026-08-17 — ver backlog)
+Una venta puede incluir **varios productos** (líneas en `venta_items`, ver abajo). Los campos de
+`ventas` son siempre **agregados de toda la venta** — total, cuotas y comisión se calculan sobre
+el conjunto, no por producto. `codigo_producto`/`cantidad` (que antes vivían directo en esta
+tabla, cuando una venta era de un solo producto) se movieron a `venta_items`.
 - id (PK)
-- codigo_producto (FK -> productos.codigo)
 - comprador_celular (FK -> compradores.celular, nullable si es venta anónima)
-- cantidad (int)
-- valor_contado (decimal, = valor_venta del producto al momento × cantidad, antes de cualquier recargo)
+- valor_contado (decimal, = suma de `valor_unitario × cantidad` de todas las líneas, antes de
+  cualquier recargo)
 - medio_pago (enum: 'contado', 'cuotas')
 - num_cuotas (int, nullable — solo si medio_pago = 'cuotas'; máximo 3)
 - frecuencia_cuotas (enum: 'semanal', 'quincenal', 'mensual'; nullable — solo si medio_pago =
-  'cuotas'. Agregado 2026-08-06, define cada cuántos días vence cada cuota — 7/15/30
-  respectivamente.)
-- recargo_cuotas (decimal, nullable — valor extra cobrado por financiar. Al registrar la venta
-  se toma de `configuracion_app.recargo_cuotas_global` (ajustable desde Comisiones); al editar
-  una venta ya creada, se puede ajustar manualmente para esa venta puntual sin afectar el global.)
+  'cuotas'. Define cada cuántos días vence cada cuota — 7/15/30 respectivamente.)
+- recargo_cuotas (decimal, nullable — valor extra cobrado por financiar, de la venta completa,
+  no por línea. Al registrar la venta se toma de `configuracion_app.recargo_cuotas_global`
+  (ajustable desde Comisiones); al editar una venta ya creada, se puede ajustar manualmente
+  para esa venta puntual sin afectar el global.)
 - valor_total_venta (decimal, = valor_contado + recargo_cuotas)
-- costo_promedio_al_momento (decimal — el nombre es histórico: desde 2026-08-09 se copia el costo
-  de la **compra más recientes** del producto al momento de la venta, no el promedio ponderado
-  `productos.costo_promedio` — ver backlog. Fallback al promedio ponderado solo si el producto
-  no tiene ninguna compra registrada. Se copia una vez y no se recalcula despues, para que la
-  ganancia histórica no se distorsione con compras futuras)
-- ganancia (decimal, = valor_total_venta - (costo_promedio_al_momento × cantidad))
+- ganancia (decimal, = suma de la `ganancia` de cada línea — ver `venta_items`)
 - canal (enum: 'whatsapp', 'presencial')
 - fecha_venta
 - vendedor_id (FK -> usuarios.id, nullable — quien registró la venta; lo asigna el backend a
   partir de la sesión autenticada, nunca lo manda el cliente. Agregado 2026-08-02.)
 - comision_porcentaje (decimal, copiado de usuarios.porcentaje_comision al momento de la venta —
-  mismo patrón que costo_promedio_al_momento, para que liquidaciones pasadas no se distorsionen
-  si el % de un vendedor cambia después)
-- comision (decimal, = valor_total_venta × comision_porcentaje / 100)
+  mismo patrón de snapshot histórico que `venta_items.costo_unitario_al_momento`, para que
+  liquidaciones pasadas no se distorsionen si el % de un vendedor cambia después)
+- comision (decimal, = valor_total_venta × comision_porcentaje / 100 — sobre el total de la
+  venta, no por línea/producto)
 - comision_estado (enum: 'pendiente', 'liquidada')
 - liquidacion_id (FK -> liquidaciones_comision.id, nullable — se llena cuando se liquida)
+
+### venta_items (agregado 2026-08-17)
+Una línea = un producto dentro de una venta. `onDelete: Cascade` desde `ventas` (las líneas no
+tienen vida propia fuera de su venta — a diferencia de `cuotas`, que deliberadamente NO tiene
+cascada porque el service ya maneja su borrado paso a paso con resguardos).
+- id (PK)
+- venta_id (FK -> ventas.id, cascade on delete)
+- codigo_producto (FK -> productos.codigo)
+- cantidad (int)
+- valor_unitario (decimal, precio de venta de **esta línea** — por defecto el precio de
+  catálogo del producto, editable por línea para descuentos puntuales; ya no existe un
+  "Valor a cobrar" libre para toda la venta como antes, porque con varios productos de
+  distinto costo no hay forma de repartir un descuento global sin inventar una regla arbitraria
+  de ganancia por producto)
+- costo_unitario_al_momento (decimal — el nombre es histórico: se copia el costo de la
+  **compra más reciente** del producto al momento de la venta, no el promedio ponderado
+  `productos.costo_promedio`. Fallback al promedio ponderado solo si el producto no tiene
+  ninguna compra registrada. Se copia una vez por línea y no se recalcula después, para que la
+  ganancia histórica no se distorsione con compras futuras — al editar una venta, las líneas
+  que se conservan preservan este valor; solo las líneas realmente nuevas calculan costo fresco)
+- ganancia (decimal, = (valor_unitario - costo_unitario_al_momento) × cantidad — por esto se
+  guarda como columna en vez de calcularse al vuelo: el análisis ABC necesita ganancia por
+  producto, que solo existe a nivel de línea, no de venta)
 
 ### liquidaciones_comision (agregado 2026-08-02)
 - id (PK)
@@ -792,14 +814,154 @@ Dos capacidades confirmadas como faltantes y construidas en esta ronda:
   cuotas pagadas restauró el stock exacto (24 → 21 al vender 3 unidades → 24 de nuevo al
   eliminar), borró sus cuotas, y un `GET` posterior a esa venta devolvió 404.
 
-**Pendiente de diseño, explícitamente fuera de esta ronda:** el usuario confirmó que quiere
-que una venta pueda tener **varias líneas de producto** (hoy `Venta` tiene `codigoProducto`/
-`cantidad` escalares, una sola línea por venta), con la aclaración de que el total, las cuotas
-y la comisión deben calcularse **sobre el total de la venta**, no por línea. Es un cambio de
-esquema grande que toca prácticamente todo `metrics.service.ts` (varias métricas hacen JOIN
-directo asumiendo `ventas.codigo_producto` escalar), `ventas.service.ts`, el formulario de
-Ventas, y probablemente el script de seed — requiere una migración de Prisma y se va a
-planear/documentar aparte antes de tocar código, dado el alcance.
+El pendiente de diseño mencionado en esta auditoría (ventas con varias líneas de producto) se
+implementó en la misma ronda — ver siguiente sección.
+
+### Ventas multi-línea: varios productos por venta — COMPLETO (2026-08-17)
+
+Pedido explícito del usuario, planeado con `EnterPlanMode` antes de tocar código dado el
+alcance (toca el schema, `metrics.service.ts` casi completo, `ventas.service.ts`, y el
+formulario de Ventas). Contexto que simplificó la migración: en producción solo había 2 ventas
+(una duplicada del mismo cliente) y el usuario las borró antes de migrar — no hubo que
+preservar datos históricos, solo confirmar `ventas` vacía antes del `DROP COLUMN`.
+
+**Decisiones de diseño confirmadas con el usuario:**
+1. **Precio editable por línea, sin total libre de toda la venta.** Antes se podía escribir
+   cualquier "Valor a cobrar" total (descuento general). Con varios productos de distinto costo
+   en una venta, no hay forma de repartir ese descuento sin inventar una regla arbitraria de
+   ganancia por producto — cada línea tiene su propio `valor_unitario` editable (por defecto el
+   precio de catálogo, mismo patrón que ya usa Compra por lote), y el total de la venta se
+   **deriva** como la suma de `valor_unitario × cantidad` de todas las líneas.
+2. **Editar una venta permite agregar/quitar/cambiar productos**, no solo ajustar cantidad/precio
+   de lo que ya estaba — ver diseño abajo.
+
+**Schema:** nuevo modelo `VentaItem` (ver `venta_items` en el modelo de datos arriba),
+`onDelete: Cascade` desde `Venta`. `Venta` pierde `codigoProducto`/`cantidad`/
+`costoPromedioAlMomento` y su relation directa a `Producto`; gana `items VentaItem[]`. Migración
+generada con `prisma migrate dev --create-only` (mismo patrón que `categoria_texto_libre`) — en
+este caso el SQL autogenerado ya era seguro de aplicar tal cual porque la tabla estaba vacía
+(sin `USING` cast necesario, a diferencia de la migración de categoría que sí tenía datos que
+preservar).
+
+**`ventas.service.ts` — `registrarVenta`/`registrarVentaEnTx`:** input pasa de
+`{ codigoProducto, cantidad, valorContado? }` a `{ items: [{ codigoProducto, cantidad,
+valorUnitario? }] }`. La cantidad se agrupa por producto **antes** de validar/descontar stock
+(un mismo producto puede aparecer en dos líneas — validar/descontar por línea en vez de por
+producto agregado dejaría pasar combinaciones que en total superan el stock). Por línea:
+`valorUnitario = item.valorUnitario ?? producto.valorVenta`; `costoUnitarioAlMomento =
+costoUltimaCompra(tx, codigo) ?? producto.costoPromedio` (reutiliza el helper que ya existía en
+`compras.service.ts`, ahora llamado por línea en vez de una vez). `generarCuotas` **no
+cambió** — ya solo dependía del `valorTotalVenta` agregado y el id de venta.
+
+**`actualizarVenta` — la parte más delicada:** el usuario pidió poder agregar/quitar/cambiar
+productos al editar, no solo ajustar los que ya estaban. Diseño: cada línea del input trae un
+`id` opcional — presente si es una línea existente que se ajusta (preserva su
+`costoUnitarioAlMomento` histórico, igual que antes se preservaba `costoPromedioAlMomento` a
+nivel de venta), ausente si es una línea nueva (calcula costo fresco con `costoUltimaCompra`,
+igual que en creación). El stock se recalcula por **diferencia agregada por producto** (no por
+línea): se agrupa cantidad vieja y nueva por `codigoProducto` en todo el conjunto de líneas, y
+para cada producto afectado `stockFinal = stockActual + totalViejo - totalNuevo` — evita bugs
+de aritmética incremental cuando un producto se mueve entre líneas o queda duplicado. Luego se
+borran todas las líneas viejas (`deleteMany`) y se crean las nuevas ya con su costo resuelto —
+más simple y menos propenso a bugs que parchear cada línea incrementalmente. Cuotas: se siguen
+borrando y regenerando igual que siempre.
+
+**`eliminarVenta`:** restaura stock agrupando por producto sobre `existente.items` (antes era
+un solo `cantidad`); las filas de `VentaItem` ya no necesitan borrado manual — se van solas por
+la cascada del schema (a diferencia de `cuotas`, que se sigue borrando a mano).
+
+**Fix crítico, fácil de pasar por alto:** `compras.service.ts` → `recalcularProducto` calculaba
+el stock de un producto restando `tx.venta.aggregate({ where: { codigoProducto }, _sum: {
+cantidad: true } })`. Con `Venta` sin esos campos ya no compila — se corrigió a
+`tx.ventaItem.aggregate(...)`. El error de compilación fue la red de seguridad real de esta
+migración: quitar campos de `Venta` rompe el build en cada sitio que los usaba, así que `tsc`
+encontró solo en dos scripts (`seed-datos-prueba.ts`, `limpiar-datos-prueba.ts`) los usos que
+faltaban — ningún otro sitio se pasó por alto silenciosamente.
+
+**Métricas reescritas** (`metrics.service.ts`) — las que hacían JOIN directo a
+`ventas.codigo_producto`/`cantidad` pivotaron a `venta_items`: `topProductos`,
+`rotacionInventario`, `analisisAbc`, `stockMuerto`. Nota en `topProductos`: los "ingresos" por
+producto ya no incluyen el recargo por cuotas (antes, con un producto por venta, el total de la
+venta con recargo se le atribuía a ese único producto — ahora es `SUM(valor_unitario ×
+cantidad)` por línea, más correcto, pero el número cambió). `carteraCuotas` amplió el `include`
+de la venta anidada para traer `items` en vez de un `codigoProducto` único.
+`margenPorProducto`, `gananciaAcumulada`, `ticketPromedio`, `contadoVsCuotas`,
+`historialCostosProveedor` no necesitaron cambios — ya operaban sobre agregados de `Venta`.
+
+**Resumen de productos — una sola convención reutilizada en todos lados:** "Nombre del primer
+producto" si la venta tiene 1 línea, `"Nombre + N más"` si tiene varias. Implementado una vez
+en `backend/src/lib/venta-resumen.ts` (usado en `pdf-liquidacion.ts` y en el texto del
+recordatorio de WhatsApp de `recordatorios.ts`) y otra vez en
+`frontend/src/app/shared/venta-resumen.ts` (usado en la tabla de Ventas, la tabla de cuotas
+pendientes, la cartera del dashboard, y la liquidación de comisiones) — en vez de 4 formas
+distintas de resumir "el producto" de una venta que ahora puede tener varios.
+
+**Frontend — formulario de Ventas con líneas dinámicas:** "Nueva venta" y "Editar venta"
+comparten el mismo patrón ya usado en Compra por lote: campos compartidos arriba (comprador,
+canal, medio de pago, cuotas/frecuencia, vendedor) y un array de líneas con "+ Agregar
+producto"/"Quitar" por línea, cada una con `<app-producto-selector>` (reutilizado tal cual) +
+cantidad + valor unitario (autosugerido al precio de catálogo al elegir el producto, editable).
+La diferencia entre crear y editar es solo el estado inicial: crear arranca con una línea vacía
+sin `id`; editar arranca con `venta.items`, cada línea con su `id` para que el backend sepa qué
+preservar. Bug encontrado y corregido durante las pruebas: el selector de producto de la línea
+en el formulario de **edición** no tenía conectado el `(codigoChange)` que autosugiere el
+precio de catálogo (sí lo tenía el de "Nueva venta") — una línea nueva agregada durante una
+edición se quedaba sin precio y bloqueaba el guardado con "valor obligatorio".
+
+**Probado end-to-end** (creación, edición y eliminación reales, verificando stock y montos
+contra cálculo manual, no solo que la UI no tirara error):
+- Venta nueva de 2 líneas (Aretes Luna x2 + Anillo Trenzado x1): stock descontado correcto por
+  producto, `valorContado`/`valorTotalVenta`/`ganancia` cuadraron exacto con la suma calculada
+  a mano, cuotas generadas sobre el total agregado con el espaciado de días correcto según la
+  frecuencia.
+- Edición de esa venta: se quitó una línea (Anillo Trenzado — stock restaurado), se subió la
+  cantidad de una línea que se mantuvo (Aretes Luna 2→5 — costo histórico preservado exacto,
+  sin recalcularse), se agregó una línea nueva (Collar Gargantilla — costo fresco de la compra
+  más reciente). Los tres productos quedaron con el stock exacto esperado y los totales
+  recalculados cuadraron con la suma manual.
+- Eliminación de esa venta: stock de los dos productos restantes volvió exactamente a su valor
+  original, las cuotas y las líneas (`venta_items`, vía cascada) desaparecieron, y un `GET`
+  posterior a la venta devolvió 404.
+- Los 10 endpoints de métricas respondieron 200 con datos coherentes contra el seed
+  multi-línea; cero errores de consola navegando Dashboard, Productos, Compras, Compra por
+  lote, Comisiones, Compradores, Ventas y Usuarios.
+
+**Seed** (`seed-datos-prueba.ts`): de las 19 ventas de prueba, 4 son ahora genuinamente
+multi-línea (2, 2, 2 y 3 productos respectivamente, mezclando contado y cuotas) para ejercitar
+el camino de código nuevo en desarrollo, no solo envolver cada venta existente en un array de 1.
+`limpiar-datos-prueba.ts` actualizado para buscar ventas por `items: { some: { codigoProducto }
+}` en vez de la igualdad escalar que ya no existe.
+
+### Botón "Preguntar por WhatsApp" en el catálogo público — COMPLETO (2026-08-17)
+
+Pedido explícito del usuario: un botón por producto en el catálogo público que abra WhatsApp
+(web o app) con un mensaje precargado, para que un comprador pregunte por disponibilidad o
+indique que quiere comprarlo. Limitación real de la plataforma (no del proyecto): el link
+`wa.me` solo puede precargar **texto**, no puede adjuntar la foto automáticamente — el mensaje
+incluye nombre, código y precio del producto para que quede claro de qué se pregunta.
+
+El número de destino **se lee directo de la sesión de WhatsApp ya vinculada** (Baileys expone
+`socket.user.id`, formato `"<numero>:<dispositivo>@s.whatsapp.net"`) — decisión explícita del
+usuario en vez de agregar un campo de configuración manual: así queda siempre sincronizado con
+el número realmente conectado, sin duplicar el dato en ningún lado.
+
+- `backend/src/whatsapp/client.ts`: nueva función interna `numeroVinculado()` que extrae los
+  dígitos de `socket.user.id`; `obtenerEstado()` ahora también devuelve `numero` (solo cuando
+  `estado === "conectado"`).
+- `backend/src/routes/publico.routes.ts`: nuevo `GET /api/publico/whatsapp-numero` (sin
+  `requireAuth`, mismo patrón que `/catalogo`) — expone **solo** el número, nunca el QR ni el
+  resto del estado interno (eso sigue exclusivo de `GET /api/whatsapp/status`, autenticado).
+- Frontend `catalogo-publico.component.ts`: `linkWhatsapp(p)` arma
+  `https://wa.me/<numero>?text=<mensaje codificado>`; el botón (`.boton-whatsapp`, verde estilo
+  WhatsApp) solo se muestra si hay un número vinculado — si WhatsApp está desconectado, el
+  catálogo sigue funcionando normal sin el botón.
+- Bonus: la página `/whatsapp` (autenticada) ahora también muestra el número vinculado
+  (`+<numero>`) junto al estado de la conexión, para que el admin confirme a simple vista qué
+  número está usando el catálogo.
+- Probado end-to-end: `GET /api/publico/whatsapp-numero` devolvió el número real de la sesión
+  vinculada en desarrollo; los 9 productos del catálogo mostraron el botón con el link
+  correctamente armado (`https://wa.me/<numero>?text=Hola! Quisiera preguntar por: <nombre>
+  (<código>) — <precio>`); la página `/whatsapp` mostró el mismo número.
 
 ### Identidad de marca — COMPLETO (2026-08-02)
 

@@ -71,6 +71,11 @@
           <span class="badge-categoria">{{ p.categoria }}</span>
           <h3>{{ p.nombre }}</h3>
           <p class="precio">{{ formatMoneda(p.valorVenta) }}</p>
+          @if (numeroWhatsapp()) {
+            <a class="boton-whatsapp" [href]="linkWhatsapp(p)" target="_blank" rel="noopener">
+              Preguntar por WhatsApp
+            </a>
+          }
         </div>
       </article>
     }

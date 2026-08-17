@@ -21,19 +21,11 @@
   }
 }
 
-.filtros-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
 .chips {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
 .chip {
@@ -48,6 +40,47 @@
   &.active {
     background: var(--text-primary);
     color: var(--surface-1);
+  }
+}
+
+.fila-resumen {
+  cursor: pointer;
+
+  &:hover {
+    background: var(--page-plane);
+  }
+}
+
+.chevron {
+  color: var(--muted);
+  text-align: center;
+  transition: transform 0.15s;
+
+  &.abierto {
+    transform: rotate(180deg);
+  }
+}
+
+.fila-detalle {
+  background: var(--page-plane);
+
+  > td {
+    padding: 10px 12px;
+  }
+}
+
+.tabla-anidada {
+  width: 100%;
+  font-size: 13px;
+
+  th {
+    color: var(--muted);
+    font-weight: 600;
+    padding-bottom: 6px;
+  }
+
+  td {
+    padding: 4px 0;
   }
 }
 

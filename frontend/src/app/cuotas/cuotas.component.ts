@@ -33,7 +33,7 @@ export class CuotasComponent implements OnInit {
   cuotas = signal<CuotaConVenta[]>([]);
   compradores = signal<Comprador[]>([]);
   filtroEstado = signal<FiltroEstado>('todas');
-  busqueda = signal('');
+  ventaExpandidaId = signal<number | null>(null);
 
   error = signal<string | null>(null);
   exito = signal<string | null>(null);
@@ -60,25 +60,44 @@ export class CuotasComponent implements OnInit {
   recargoCuotasGlobal: number | null = null;
   guardandoRecargo = signal(false);
 
+  // Solo se usa cuando filtroEstado() !== 'todas' - lista plana de cuotas individuales
+  // filtradas por estado (cruza ventas, es la vista correcta para "que cuotas estan en tal
+  // estado"). Con "todas" seleccionado se usa la vista agrupada por venta (ventasConSaldo).
   cuotasFiltradas = computed(() => {
     const estado = this.filtroEstado();
-    const q = this.busqueda().trim().toLowerCase();
-    return this.cuotas().filter((c) => {
-      if (estado !== 'todas' && c.estado !== estado) return false;
-      if (!q) return true;
-      const comprador = this.nombreComprador(c.venta.compradorCelular).toLowerCase();
-      const producto = resumenProductosVenta(c.venta.items).toLowerCase();
-      return comprador.includes(q) || producto.includes(q);
-    });
+    return this.cuotas().filter((c) => estado === 'todas' || c.estado === estado);
   });
 
-  busquedaSugerencias = computed(() => {
-    const set = new Set<string>();
-    for (const c of this.compradores()) set.add(c.nombre);
+  // Vista agrupada por venta para el filtro "todas": una fila por venta con saldo pendiente
+  // (oculta las que ya pagaron todas sus cuotas - esas se siguen viendo filtrando por
+  // "Pagada"). GET /api/cuotas sin filtro trae todas las cuotas, asi que agrupar el array
+  // plano ya cargado por idVenta reconstruye el set completo de cuotas de cada venta sin
+  // pedirle nada nuevo al backend.
+  ventasConSaldo = computed(() => {
+    const grupos = new Map<number, CuotaConVenta[]>();
     for (const c of this.cuotas()) {
-      for (const item of c.venta.items) set.add(item.producto.nombre);
+      const grupo = grupos.get(c.idVenta);
+      if (grupo) grupo.push(c);
+      else grupos.set(c.idVenta, [c]);
     }
-    return Array.from(set).sort();
+
+    const resultado = Array.from(grupos.values()).map((cuotasDeVenta) => {
+      const pendientes = cuotasDeVenta.filter((c) => c.estado !== 'pagada');
+      const saldoPendiente = pendientes.reduce((acc, c) => acc + Number(c.valorCuota), 0);
+      const proximoVencimiento = pendientes
+        .map((c) => c.fechaVencimiento)
+        .sort()
+        .at(0);
+      return {
+        venta: cuotasDeVenta[0]!.venta,
+        cuotasDeVenta: [...cuotasDeVenta].sort((a, b) => a.numeroCuota - b.numeroCuota),
+        saldoPendiente,
+        proximoVencimiento,
+        tieneAtrasada: pendientes.some((c) => c.estado === 'atrasada'),
+      };
+    });
+
+    return resultado.filter((v) => v.saldoPendiente > 0).sort((a, b) => (a.proximoVencimiento ?? '').localeCompare(b.proximoVencimiento ?? ''));
   });
 
   constructor(
@@ -106,6 +125,10 @@ export class CuotasComponent implements OnInit {
   nombreComprador(celular: string | null): string {
     if (!celular) return 'Anonimo';
     return this.compradores().find((c) => c.celular === celular)?.nombre ?? celular;
+  }
+
+  toggleExpandir(ventaId: number): void {
+    this.ventaExpandidaId.set(this.ventaExpandidaId() === ventaId ? null : ventaId);
   }
 
   cargarCuotas(): void {

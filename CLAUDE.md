@@ -1111,6 +1111,51 @@ para una eventual segunda vuelta).
     (`pdf-liquidacion.ts`) no se tocó en este rediseño — sigue con el estilo plano anterior; el
     usuario puede pedir el mismo tratamiento ahí después si lo quiere.
 
+### Panel de Cuotas: agrupar por venta con desplegable + ocultar deudas saldadas — COMPLETO (2026-08-17)
+
+Usando el módulo `/cuotas` en la práctica, el usuario encontró dos problemas de la primera
+versión: con el filtro "Todas", una venta a 3 cuotas ocupaba 3 filas sueltas sin relación visual
+entre sí (más difícil de leer que "esta venta debe $X repartido en estas cuotas"), y una venta
+ya completamente pagada seguía apareciendo mezclada con las que sí tenían saldo. Pedido explícito
+del usuario, confirmado en la conversación: agrupar por **venta** con un desplegable que muestre
+sus cuotas — pero solo cuando el filtro es "Todas"; con un estado puntual (Pendiente/Atrasada/
+Pagada) se mantiene la lista plana de cuotas individuales de siempre, que sigue siendo la vista
+correcta para "qué cuotas están en tal estado" cruzando ventas.
+
+- **Sin cambios de backend.** `GET /api/cuotas` (`listarCuotas` en `cuotas.service.ts`) incluye
+  `venta.items` pero no `venta.cuotas` — sin embargo, como la llamada sin filtro ya trae **todas**
+  las cuotas (una fila por cuota), agrupar el array plano ya cargado en el frontend por
+  `idVenta` reconstruye el set completo de cuotas de cada venta sin pedirle nada nuevo a la API.
+- `cuotas.component.ts`: nuevo `computed()` `ventasConSaldo` — agrupa `cuotas()` por `idVenta`,
+  calcula por grupo `saldoPendiente` (suma de `valorCuota` de las cuotas no pagadas),
+  `proximoVencimiento` (la fecha más próxima entre las no pagadas) y `tieneAtrasada`, **filtra
+  fuera los grupos con `saldoPendiente === 0`** (esto implementa "deudas activas por defecto" —
+  las ventas ya saldadas simplemente no entran al array, no es un toggle aparte) y ordena por
+  urgencia. `cuotasFiltradas` (la lista plana, usada solo cuando el filtro no es "todas") se
+  simplificó — ya no filtra por búsqueda, solo por estado.
+- Se quitó el buscador por comprador/producto (`busqueda`/`busquedaSugerencias` y su `<input>` +
+  `<datalist>`) — decisión explícita del usuario, validada en la conversación: con la vista
+  agrupada + deudas saldadas ocultas por defecto, la lista visible ya es corta y el buscador
+  dejó de aportar.
+- `cuotas.component.html`: la sección de la tabla ahora es `@if (filtroEstado() === 'todas')`
+  (vista agrupada) `@else` (vista plana, exactamente el markup que ya existía). La vista
+  agrupada muestra Venta #/Comprador/Producto/Total venta/Saldo pendiente/Próx. vencimiento/
+  Estado (badge "atrasada" si `tieneAtrasada`, si no "pendiente") + una columna de chevron;
+  click en la fila alterna `ventaExpandidaId` (signal `number | null`, un solo desplegable
+  abierto a la vez — mismo patrón que `editandoVentaId` en Ventas) y revela una fila
+  `<tr><td colspan="8">` con una sub-tabla (`.tabla-anidada`) con las cuotas de esa venta,
+  mismas columnas/acciones (Marcar pagada/Editar fecha) que la vista plana de siempre.
+- El encabezado "Cuotas (N)" muestra la cantidad relevante en cada caso: cantidad de ventas con
+  saldo cuando está agrupado, cantidad de cuotas cuando está filtrado (como antes).
+- Probado contra datos reales del entorno de desarrollo (no solo visualmente, ya que no había un
+  navegador headless disponible en esta sesión): se replicó la lógica de agrupación en un script
+  de Node contra `GET /api/cuotas` crudo, confirmando que el saldo pendiente de una venta con 1
+  cuota pagada + 1 pendiente cuadraba exacto; se marcó su cuota restante como pagada vía API y se
+  confirmó que la venta pasa a `saldoPendiente = 0` y queda excluida del grupo "con saldo" (8 → 7
+  ventas), mientras que `GET /api/cuotas?estado=pagada` sigue devolviendo sus 2 cuotas pagadas —
+  confirma que no queda permanentemente oculta, solo fuera de la vista por defecto. Typecheck
+  limpio en frontend.
+
 ### Identidad de marca — COMPLETO (2026-08-02)
 
 Assets de marca ya existentes en `frontend/public/brand/files/` (logo maestro, monograma,

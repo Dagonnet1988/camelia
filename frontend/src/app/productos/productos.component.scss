@@ -15,6 +15,13 @@
   margin-right: 6px;
 }
 
+// Stock en el minimo o por debajo - se resalta la fila completa en vez de un badge junto al
+// numero, para identificar de un vistazo cuales productos necesitan reabastecimiento sin
+// descuadrar la alineacion de las columnas numericas.
+.fila-stock-bajo > td {
+  background: color-mix(in srgb, var(--serious) 12%, var(--surface-1));
+}
+
 .fotos-producto {
   margin-top: 20px;
   padding-top: 20px;

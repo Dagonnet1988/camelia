@@ -53,19 +53,14 @@
       </thead>
       <tbody>
         @for (p of productosFiltrados(); track p.codigo; let i = $index) {
-          <tr>
+          <tr [class.fila-stock-bajo]="stockBajo(p)">
             <td>{{ i + 1 }}</td>
             <td>{{ p.codigo }}</td>
             <td>{{ p.nombre }}</td>
             <td>{{ p.categoria }}</td>
             <td class="num">{{ p.valorVenta }}</td>
             <td class="num">{{ comisionEstimada(p) }}</td>
-            <td class="num">
-              {{ p.stockActual }}
-              @if (stockBajo(p)) {
-                <span class="badge badge-bajo">bajo</span>
-              }
-            </td>
+            <td class="num">{{ p.stockActual }}</td>
             <td class="num">{{ p.stockMinimo }}</td>
             @if (puedeEditar || puedeEliminar) {
               <td>
